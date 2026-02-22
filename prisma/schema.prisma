@@ -1,0 +1,31 @@
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+model Resume {
+  id             String   @id @default(cuid())
+  title          String   @default("Untitled Resume")
+  templateId     String   @default("ats-001")
+  templateConfig String? // JSON string: {primaryColor, accentColor, fontFamily, fontSize, lineSpacing}
+  personalInfo   String? // JSON string: {name, email, phone, address, linkedin, website, photoUrl}
+  summary        String?
+  workExperience String? // JSON string: [{company, position, startDate, endDate, isCurrent, description, bullets[]}]
+  education      String? // JSON string: [{institution, degree, fieldOfStudy, startDate, endDate, gpa}]
+  skills         String? // JSON string: [{name, level}]
+  certifications String? // JSON string: [{name, issuer, date, credentialId}]
+  languages      String? // JSON string: [{language, proficiency}]
+  projects       String? // JSON string: [{name, description, url, technologies[]}]
+  awards         String? // JSON string: [{title, issuer, date, description}]
+  references     String? // JSON string: [{name, position, company, email, phone}]
+  customSections String? // JSON string: [{id, title, content}]
+  sectionOrder   String? // JSON string: ["personalInfo","summary","workExperience","education","skills",...]
+  hiddenSections String? // JSON string: ["references","awards"]
+  uploadedFile   String? // path to original uploaded file
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}

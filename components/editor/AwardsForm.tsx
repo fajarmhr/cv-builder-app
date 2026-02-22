@@ -1,0 +1,181 @@
+"use client";
+
+import { useState, useRef, useCallback } from "react";
+import { useResumeStore } from "@/lib/store/resume-store";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Trash2,
+  Copy,
+  GripVertical,
+} from "lucide-react";
+import type { Award } from "@/types/resume";
+
+function generateId() {
+  return Math.random().toString(36).slice(2, 11);
+}
+
+function AwardEntry({
+  entry,
+  index,
+  onUpdate,
+  onRemove,
+  onDuplicate,
+}: {
+  entry: Award;
+  index: number;
+  onUpdate: (index: number, data: Award) => void;
+  onRemove: (index: number) => void;
+  onDuplicate: (index: number) => void;
+}) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const entryRef = useRef(entry);
+  entryRef.current = entry;
+
+  const handleFieldChange = useCallback(
+    (field: keyof Award, value: string) => {
+      const key = `${index}-${field}`;
+      if (debounceTimers.current[key]) clearTimeout(debounceTimers.current[key]);
+      debounceTimers.current[key] = setTimeout(() => {
+        onUpdate(index, { ...entryRef.current, [field]: value });
+      }, 300);
+    },
+    [index, onUpdate]
+  );
+
+  const header = entry.title
+    ? `${entry.title}${entry.issuer ? ` — ${entry.issuer}` : ""}`
+    : "New Award";
+
+  return (
+    <div className="border rounded-md">
+      <div className="flex items-center gap-2 px-3 py-2 bg-muted/30">
+        <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+        <button
+          className="flex items-center gap-1.5 flex-1 text-sm font-medium text-left"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
+          <span className="truncate">{header}</span>
+        </button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          onClick={() => onDuplicate(index)}
+          title="Duplicate"
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-destructive hover:text-destructive"
+          onClick={() => onRemove(index)}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      {!isCollapsed && (
+        <div className="p-3 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Award Title</Label>
+              <Input
+                className="h-9 text-sm mt-1"
+                placeholder="e.g. Employee of the Year"
+                defaultValue={entry.title}
+                onChange={(e) => handleFieldChange("title", e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Issuing Organization</Label>
+              <Input
+                className="h-9 text-sm mt-1"
+                placeholder="e.g. Company Name"
+                defaultValue={entry.issuer}
+                onChange={(e) => handleFieldChange("issuer", e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Date</Label>
+              <Input
+                className="h-9 text-sm mt-1"
+                type="month"
+                defaultValue={entry.date}
+                onChange={(e) => handleFieldChange("date", e.target.value)}
+              />
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Description (Optional)</Label>
+            <textarea
+              className="mt-1 w-full min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+              placeholder="Brief description..."
+              defaultValue={entry.description}
+              onChange={(e) => handleFieldChange("description", e.target.value)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function AwardsForm() {
+  const { resume, addItem, updateItem, removeItem, duplicateItem } = useResumeStore();
+  const awards: Award[] = resume?.awards || [];
+
+  function handleAdd() {
+    addItem("awards", {
+      id: generateId(),
+      title: "",
+      issuer: "",
+      date: "",
+      description: "",
+    } as Award);
+  }
+
+  function handleUpdate(index: number, data: Award) {
+    updateItem("awards", index, data);
+  }
+
+  function handleRemove(index: number) {
+    removeItem("awards", index);
+  }
+
+  function handleDuplicate(index: number) {
+    duplicateItem("awards", index);
+  }
+
+  return (
+    <div className="space-y-3">
+      {awards.map((award, index) => (
+        <AwardEntry
+          key={award.id || index}
+          entry={award}
+          index={index}
+          onUpdate={handleUpdate}
+          onRemove={handleRemove}
+          onDuplicate={handleDuplicate}
+        />
+      ))}
+      <Button variant="outline" size="sm" className="w-full" onClick={handleAdd}>
+        <Plus className="h-4 w-4 mr-1.5" />
+        Add Award
+      </Button>
+    </div>
+  );
+}
