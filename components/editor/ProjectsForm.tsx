@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useResumeStore } from "@/lib/store/resume-store";
+import { SortableList } from "./SortableList";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -22,18 +25,34 @@ function generateId() {
 }
 
 function ProjectEntry({
+  id,
   entry,
   index,
   onUpdate,
   onRemove,
   onDuplicate,
 }: {
+  id: string;
   entry: Project;
   index: number;
   onUpdate: (index: number, data: Project) => void;
   onRemove: (index: number) => void;
   onDuplicate: (index: number) => void;
 }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+  const sortableStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 20 : undefined,
+  };
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [techInput, setTechInput] = useState("");
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
@@ -74,9 +93,16 @@ function ProjectEntry({
   const header = entry.name || "New Project";
 
   return (
-    <div className="border rounded-md">
+    <div ref={setNodeRef} style={sortableStyle} className="border rounded-md">
       <div className="flex items-center gap-2 px-3 py-2 bg-muted/30">
-        <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+        <span
+          {...attributes}
+          {...listeners}
+          className="cursor-grab touch-none text-muted-foreground active:cursor-grabbing"
+          title="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </span>
         <button
           className="flex items-center gap-1.5 flex-1 text-sm font-medium text-left"
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -193,8 +219,9 @@ function ProjectEntry({
 }
 
 export function ProjectsForm() {
-  const { resume, addItem, updateItem, removeItem, duplicateItem } = useResumeStore();
+  const { resume, addItem, updateItem, removeItem, duplicateItem, reorderItems } = useResumeStore();
   const projects: Project[] = resume?.projects || [];
+  const ids = projects.map((it, i) => it.id || `projects-${i}`);
 
   function handleAdd() {
     addItem("projects", {
@@ -222,9 +249,11 @@ export function ProjectsForm() {
 
   return (
     <div className="space-y-3">
+      <SortableList ids={ids} onReorder={(from, to) => reorderItems("projects", from, to)}>
       {projects.map((project, index) => (
         <ProjectEntry
-          key={project.id || index}
+          key={ids[index]}
+          id={ids[index]}
           entry={project}
           index={index}
           onUpdate={handleUpdate}
@@ -232,6 +261,7 @@ export function ProjectsForm() {
           onDuplicate={handleDuplicate}
         />
       ))}
+      </SortableList>
       <Button variant="outline" size="sm" className="w-full" onClick={handleAdd}>
         <Plus className="h-4 w-4 mr-1.5" />
         Add Project

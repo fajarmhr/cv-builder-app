@@ -28,14 +28,12 @@ export function CVUploader({ trigger }: { trigger?: React.ReactNode }) {
   const [isCreating, setIsCreating] = useState(false);
   const [parsed, setParsed] = useState<ParsedData | null>(null);
   const [rawText, setRawText] = useState("");
-  const [uploadedPath, setUploadedPath] = useState("");
   const [dragOver, setDragOver] = useState(false);
 
   function reset() {
     setStep("upload");
     setParsed(null);
     setRawText("");
-    setUploadedPath("");
     setIsUploading(false);
     setIsCreating(false);
   }
@@ -63,7 +61,6 @@ export function CVUploader({ trigger }: { trigger?: React.ReactNode }) {
       const data = await res.json();
       setParsed(data.parsed);
       setRawText(data.rawText);
-      setUploadedPath(data.uploadedFilePath);
       setStep("review");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to parse file");
@@ -107,7 +104,7 @@ export function CVUploader({ trigger }: { trigger?: React.ReactNode }) {
       await fetch(`/api/resumes/${createData.resume.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...parsed, uploadedFile: uploadedPath }),
+        body: JSON.stringify(parsed),
       });
 
       setOpen(false);
@@ -195,7 +192,10 @@ export function CVUploader({ trigger }: { trigger?: React.ReactNode }) {
                     <legend className="text-xs font-semibold px-1">Work Experience ({parsed.workExperience!.length})</legend>
                     {parsed.workExperience!.map((exp, i) => (
                       <div key={i} className="text-xs border-b last:border-0 py-1">
-                        <span className="font-medium">{exp.position || "?"}</span> at {exp.company || "?"} ({exp.startDate} — {exp.isCurrent ? "Present" : exp.endDate})
+                        <span className="font-medium">{exp.company || "?"}</span>
+                        {exp.positions?.length
+                          ? ` — ${exp.positions.map((p) => p.title).filter(Boolean).join(", ")}`
+                          : ""}
                       </div>
                     ))}
                   </fieldset>

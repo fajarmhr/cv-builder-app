@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError, parseResumeFromDb, prepareResumeForDb } from "@/lib/utils/api-helpers";
-import fs from "fs";
-import path from "path";
+import { getUserId } from "@/lib/auth";
 
 // GET /api/resumes/[id]
 export async function GET(
@@ -10,8 +9,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserId();
+    if (!userId) return apiError("Unauthorized", 401);
+
     const { id } = await params;
-    const resume = await prisma.resume.findUnique({ where: { id } });
+    const resume = await prisma.resume.findFirst({ where: { id, userId } });
 
     if (!resume) {
       return apiError("Resume not found", 404);
@@ -29,8 +31,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserId();
+    if (!userId) return apiError("Unauthorized", 401);
+
     const { id } = await params;
-    const existing = await prisma.resume.findUnique({ where: { id } });
+    const existing = await prisma.resume.findFirst({ where: { id, userId } });
 
     if (!existing) {
       return apiError("Resume not found", 404);
@@ -56,23 +61,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserId();
+    if (!userId) return apiError("Unauthorized", 401);
+
     const { id } = await params;
-    const resume = await prisma.resume.findUnique({ where: { id } });
+    const resume = await prisma.resume.findFirst({ where: { id, userId } });
 
     if (!resume) {
       return apiError("Resume not found", 404);
-    }
-
-    // Delete associated uploaded file if exists
-    if (resume.uploadedFile) {
-      const filePath = path.resolve(process.cwd(), resume.uploadedFile);
-      try {
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      } catch {
-        // Continue even if file deletion fails
-      }
     }
 
     await prisma.resume.delete({ where: { id } });

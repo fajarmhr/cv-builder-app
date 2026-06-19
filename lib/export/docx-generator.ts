@@ -10,9 +10,11 @@ import {
   BorderStyle,
   LevelFormat,
 } from "docx";
-import type { ResumeData, TemplateConfig, CustomSection, WorkExperience, Education, Skill, Certification, Language, Project, Award, Reference } from "@/types/resume";
+import type { ResumeData, TemplateConfig, CustomSection, Education, Skill, Certification, Language, Project, Award, Reference } from "@/types/resume";
+import { normalizeWorkExperience } from "@/types/resume";
 import { isCustomSectionId, getCustomSectionEntryId } from "@/types/resume";
 import { getDocxStyles, type DocxStyleConfig } from "./docx-styles";
+import { groupSkills } from "@/components/templates/template-helpers";
 
 function formatDate(d: string): string {
   if (!d) return "";
@@ -146,14 +148,14 @@ function sectionHeading(title: string, styles: DocxStyleConfig): Paragraph {
         text: title.toUpperCase(),
         bold: true,
         size: styles.heading2Size,
-        font: styles.fontFamily,
+        font: styles.headerFontFamily,
         color: styles.headingTextColor,
       }),
     ],
     heading: HeadingLevel.HEADING_2,
     spacing: { before: 200, after: 80 },
     border: {
-      bottom: { style: BorderStyle.SINGLE, size: 1, color: styles.accentColor },
+      bottom: { style: BorderStyle.SINGLE, size: styles.variant === "modern" ? 12 : 6, color: styles.sectionRuleColor },
     },
   });
 }
@@ -172,10 +174,12 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
             text: info.name,
             bold: true,
             size: styles.titleSize,
-            font: styles.fontFamily,
+            font: styles.headerFontFamily,
+            color: styles.headingTextColor,
+            allCaps: styles.variant !== "modern",
           }),
         ],
-        alignment: AlignmentType.CENTER,
+        alignment: styles.headerAlign,
         spacing: { after: 60 },
       })
     );
@@ -193,8 +197,11 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
             color: "666666",
           }),
         ],
-        alignment: AlignmentType.CENTER,
+        alignment: styles.headerAlign,
         spacing: { after: 120 },
+        ...(styles.variant === "minimal"
+          ? { border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: "000000" } } }
+          : {}),
       })
     );
   }
@@ -204,17 +211,20 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
 
 function renderSummary(summary: string | null, styles: DocxStyleConfig): Paragraph[] {
   if (!summary) return [];
+  // Lead paragraph (no heading) to match the on-screen templates.
+  const lines = summary.split("\n");
   return [
-    sectionHeading("Professional Summary", styles),
     new Paragraph({
-      children: [
-        new TextRun({
-          text: summary,
-          size: styles.normalSize,
-          font: styles.fontFamily,
-        }),
-      ],
-      spacing: { after: styles.spacing.after },
+      children: lines.map(
+        (line, i) =>
+          new TextRun({
+            text: line,
+            size: styles.normalSize,
+            font: styles.fontFamily,
+            break: i > 0 ? 1 : undefined,
+          })
+      ),
+      spacing: { before: 40, after: styles.spacing.after },
     }),
   ];
 }
@@ -225,8 +235,7 @@ function renderWorkExperience(resume: ResumeData, styles: DocxStyleConfig): Para
   const paragraphs: Paragraph[] = [sectionHeading("Work Experience", styles)];
 
   for (const exp of resume.workExperience) {
-    const dateStr = `${formatDate(exp.startDate)} — ${exp.isCurrent ? "Present" : formatDate(exp.endDate)}`;
-
+    // Company header (positions carry their own date ranges below).
     paragraphs.push(
       new Paragraph({
         children: [
@@ -236,54 +245,56 @@ function renderWorkExperience(resume: ResumeData, styles: DocxStyleConfig): Para
             size: styles.heading3Size,
             font: styles.fontFamily,
           }),
-          new TextRun({
-            text: "\t" + dateStr,
-            size: styles.normalSize,
-            font: styles.fontFamily,
-            color: "666666",
-          }),
         ],
-        tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
         spacing: { before: 100, after: 20 },
       })
     );
 
-    if (exp.position) {
+    for (const pos of exp.positions) {
+      const dateStr = `${formatDate(pos.startDate)} — ${pos.isCurrent ? "Present" : formatDate(pos.endDate)}`;
+
       paragraphs.push(
         new Paragraph({
           children: [
             new TextRun({
-              text: exp.position,
+              text: pos.title || "",
               bold: true,
               italics: true,
               size: styles.normalSize,
               font: styles.fontFamily,
             }),
+            new TextRun({
+              text: "\t" + dateStr,
+              size: styles.normalSize,
+              font: styles.fontFamily,
+              color: "666666",
+            }),
           ],
+          tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
           spacing: { after: 40 },
         })
       );
-    }
 
-    const { lines, isSingleParagraph } = resolveBulletLines(exp.bullets, exp.description);
+      const { lines, isSingleParagraph } = resolveBulletLines(pos.bullets, pos.description);
 
-    if (isSingleParagraph && lines.length === 1) {
-      // Single-line plain description
-      paragraphs.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: lines[0],
-              size: styles.normalSize,
-              font: styles.fontFamily,
-            }),
-          ],
-          spacing: { after: 60 },
-        })
-      );
-    } else {
-      for (const line of lines) {
-        paragraphs.push(bulletParagraph(line, styles));
+      if (isSingleParagraph && lines.length === 1) {
+        // Single-line plain description
+        paragraphs.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: lines[0],
+                size: styles.normalSize,
+                font: styles.fontFamily,
+              }),
+            ],
+            spacing: { after: 60 },
+          })
+        );
+      } else {
+        for (const line of lines) {
+          paragraphs.push(bulletParagraph(line, styles));
+        }
       }
     }
   }
@@ -351,9 +362,38 @@ function renderEducation(resume: ResumeData, styles: DocxStyleConfig): Paragraph
 function renderSkills(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
   if (!resume.skills.length) return [];
   const paragraphs: Paragraph[] = [sectionHeading("Skills", styles)];
-  for (const s of resume.skills) {
-    const text = s.level ? `${s.name} (${s.level})` : s.name;
-    paragraphs.push(bulletParagraph(text, styles));
+  const fmt = (s: { name: string; level?: string }) =>
+    s.level ? `${s.name} (${s.level})` : s.name;
+
+  const groups = groupSkills(resume.skills);
+  const grouped = groups.length > 1 || (groups.length === 1 && !!groups[0].category);
+
+  if (grouped) {
+    for (const g of groups) {
+      const children: TextRun[] = [];
+      if (g.category) {
+        children.push(
+          new TextRun({
+            text: `${g.category}: `,
+            bold: true,
+            size: styles.normalSize,
+            font: styles.fontFamily,
+          })
+        );
+      }
+      children.push(
+        new TextRun({
+          text: g.items.map(fmt).join(", "),
+          size: styles.normalSize,
+          font: styles.fontFamily,
+        })
+      );
+      paragraphs.push(new Paragraph({ children, spacing: { after: 40 } }));
+    }
+  } else {
+    for (const s of resume.skills) {
+      paragraphs.push(bulletParagraph(fmt(s), styles));
+    }
   }
   return paragraphs;
 }
@@ -556,31 +596,33 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
 
   switch (cs.basedOn) {
     case "workExperience":
-      for (const exp of cs.items as WorkExperience[]) {
-        const dateStr = `${formatDate(exp.startDate)} — ${exp.isCurrent ? "Present" : formatDate(exp.endDate)}`;
+      for (const exp of normalizeWorkExperience(cs.items)) {
         paragraphs.push(
           new Paragraph({
             children: [
               new TextRun({ text: exp.company || "", bold: true, size: styles.heading3Size, font: styles.fontFamily }),
-              new TextRun({ text: "\t" + dateStr, size: styles.normalSize, font: styles.fontFamily, color: "666666" }),
             ],
-            tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
             spacing: { before: 100, after: 20 },
           })
         );
-        if (exp.position) {
+        for (const pos of exp.positions) {
+          const dateStr = `${formatDate(pos.startDate)} — ${pos.isCurrent ? "Present" : formatDate(pos.endDate)}`;
           paragraphs.push(
             new Paragraph({
-              children: [new TextRun({ text: exp.position, bold: true, italics: true, size: styles.normalSize, font: styles.fontFamily })],
+              children: [
+                new TextRun({ text: pos.title || "", bold: true, italics: true, size: styles.normalSize, font: styles.fontFamily }),
+                new TextRun({ text: "\t" + dateStr, size: styles.normalSize, font: styles.fontFamily, color: "666666" }),
+              ],
+              tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
               spacing: { after: 40 },
             })
           );
-        }
-        const { lines, isSingleParagraph } = resolveBulletLines(exp.bullets, exp.description);
-        if (isSingleParagraph && lines.length === 1) {
-          paragraphs.push(new Paragraph({ children: [new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily })], spacing: { after: 60 } }));
-        } else {
-          for (const line of lines) paragraphs.push(bulletParagraph(line, styles));
+          const { lines, isSingleParagraph } = resolveBulletLines(pos.bullets, pos.description);
+          if (isSingleParagraph && lines.length === 1) {
+            paragraphs.push(new Paragraph({ children: [new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily })], spacing: { after: 60 } }));
+          } else {
+            for (const line of lines) paragraphs.push(bulletParagraph(line, styles));
+          }
         }
       }
       break;
@@ -728,10 +770,10 @@ const SECTION_RENDERERS: Record<string, (resume: ResumeData, styles: DocxStyleCo
 
 export async function generateDocx(
   resume: ResumeData,
-  _templateId: string,
+  templateId: string,
   config: TemplateConfig
 ): Promise<Buffer> {
-  const styles = getDocxStyles(config);
+  const styles = getDocxStyles(config, templateId);
   const hiddenSections = new Set<string>(resume.hiddenSections || []);
   const sectionOrder = resume.sectionOrder || [];
 
@@ -800,4 +842,12 @@ export async function generateDocx(
 
   const buffer = await Packer.toBuffer(doc);
   return Buffer.from(buffer);
+}
+
+export function docxFilename(resume: ResumeData): string {
+  const safe = (resume.personalInfo?.name || resume.title || "Resume")
+    .replace(/[^a-zA-Z0-9_\- ]/g, "")
+    .trim()
+    .replace(/\s+/g, "_");
+  return `CV_${safe || "Resume"}.docx`;
 }

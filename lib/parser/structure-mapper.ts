@@ -10,7 +10,20 @@ import type {
   Award,
   SectionId,
 } from "@/types/resume";
-import { DEFAULT_SECTION_ORDER } from "@/types/resume";
+import { DEFAULT_SECTION_ORDER, normalizeWorkExperience } from "@/types/resume";
+
+// Flat intermediate used while parsing one job; wrapped into the nested
+// WorkExperience shape (company -> positions) via normalizeWorkExperience.
+interface FlatJob {
+  id: string;
+  company: string;
+  position: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  description: string;
+  bullets: string[];
+}
 
 // ─── Utilities ───
 
@@ -554,10 +567,10 @@ function parseExperience(lines: string[]): WorkExperience[] {
     mergedBlocks.push({ ...block, lines: [...block.lines] });
   }
 
-  const entries: WorkExperience[] = [];
+  const entries: FlatJob[] = [];
 
   for (const block of mergedBlocks) {
-    const entry: WorkExperience = {
+    const entry: FlatJob = {
       id: genId(),
       company: "",
       position: "",
@@ -635,7 +648,7 @@ function parseExperience(lines: string[]): WorkExperience[] {
     }
   }
 
-  return entries;
+  return normalizeWorkExperience(entries);
 }
 
 // ─── Education parsing ───

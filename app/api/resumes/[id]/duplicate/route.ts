@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError, parseResumeFromDb } from "@/lib/utils/api-helpers";
+import { getUserId } from "@/lib/auth";
 
 // POST /api/resumes/[id]/duplicate
 export async function POST(
@@ -8,8 +9,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserId();
+    if (!userId) return apiError("Unauthorized", 401);
+
     const { id } = await params;
-    const original = await prisma.resume.findUnique({ where: { id } });
+    const original = await prisma.resume.findFirst({ where: { id, userId } });
 
     if (!original) {
       return apiError("Resume not found", 404);
@@ -17,6 +21,7 @@ export async function POST(
 
     const duplicate = await prisma.resume.create({
       data: {
+        userId,
         title: `Copy of ${original.title}`,
         templateId: original.templateId,
         templateConfig: original.templateConfig,

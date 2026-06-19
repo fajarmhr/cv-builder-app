@@ -1,37 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getIronSession } from "iron-session";
-import { cookies } from "next/headers";
-import type { SessionData } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/favicon.ico"];
+const SESSION_COOKIE = "cv-builder-session";
+const AUTH_PAGES = ["/login", "/register"];
+const PROTECTED_PREFIXES = ["/dashboard", "/editor"];
 
-function isPublicPath(pathname: string): boolean {
-  if (pathname.startsWith("/_next")) return true;
-  return PUBLIC_PATHS.some((path) => pathname === path);
-}
-
-export async function proxy(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const hasSession = req.cookies.has(SESSION_COOKIE);
 
-  if (isPublicPath(pathname)) {
-    return NextResponse.next();
+  // Logged-in users shouldn't see login/register.
+  if (hasSession && AUTH_PAGES.includes(pathname)) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
-  const cookieStore = await cookies();
-  const session = await getIronSession<SessionData>(cookieStore, {
-    password:
-      process.env.SESSION_SECRET || "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
-    cookieName: "cv-builder-session",
-  });
-
-  if (!session.isLoggedIn) {
-    const loginUrl = new URL("/login", req.url);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  if (pathname === "/login") {
-    const dashboardUrl = new URL("/dashboard", req.url);
-    return NextResponse.redirect(dashboardUrl);
+  // Guard protected pages (fast cookie check; layout re-verifies authoritatively).
+  const isProtected = PROTECTED_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p + "/")
+  );
+  if (isProtected && !hasSession) {
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
   return NextResponse.next();

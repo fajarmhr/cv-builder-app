@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, validateCredentials } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { getSession, verifyPassword } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,15 +13,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!validateCredentials(username, password)) {
+    const normalizedUsername = String(username).trim().toLowerCase();
+    const user = await prisma.user.findUnique({
+      where: { username: normalizedUsername },
+    });
+
+    if (!user || !(await verifyPassword(password, user.passwordHash))) {
       return NextResponse.json(
-        { error: "Invalid credentials" },
+        { error: "Invalid username or password" },
         { status: 401 }
       );
     }
 
     const session = await getSession();
-    session.isLoggedIn = true;
+    session.userId = user.id;
     session.loginTime = Date.now();
     await session.save();
 

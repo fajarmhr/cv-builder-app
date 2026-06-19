@@ -3,7 +3,6 @@ import type {
   ResumeData,
   TemplateConfig,
   CustomSection,
-  WorkExperience,
   Education,
   Skill,
   Certification,
@@ -12,7 +11,7 @@ import type {
   Award,
   Reference,
 } from "@/types/resume";
-import { isCustomSectionId, getCustomSectionEntryId } from "@/types/resume";
+import { isCustomSectionId, getCustomSectionEntryId, normalizeWorkExperience } from "@/types/resume";
 
 export function formatDate(d: string): string {
   if (!d) return "";
@@ -72,6 +71,68 @@ export function getBulletMarker(style?: TemplateConfig["bulletStyle"]): string {
  * Parse description text into bullet lines.
  * Strips leading markers (•, -, *, ▸, ▪, –) and splits by newlines.
  */
+/** Group skills by their (optional) category, preserving first-seen order; uncategorized last. */
+export function groupSkills(skills: Skill[]): { category: string; items: Skill[] }[] {
+  const order: string[] = [];
+  const map = new Map<string, Skill[]>();
+  for (const s of skills) {
+    const cat = (s.category || "").trim();
+    if (!map.has(cat)) {
+      map.set(cat, []);
+      order.push(cat);
+    }
+    map.get(cat)!.push(s);
+  }
+  const cats = order.filter((c) => c !== "");
+  if (map.has("")) cats.push("");
+  return cats.map((c) => ({ category: c, items: map.get(c)! }));
+}
+
+/**
+ * Renders the Skills body. If any skill has a category, renders grouped
+ * (category heading + inline comma list). Otherwise keeps the flat bullet
+ * list so existing resumes look unchanged.
+ */
+export function SkillsBlock({
+  skills,
+  config,
+  textSize = "text-xs",
+}: {
+  skills: Skill[];
+  config: TemplateConfig;
+  textSize?: string;
+}) {
+  const groups = groupSkills(skills);
+  const grouped = groups.length > 1 || (groups.length === 1 && !!groups[0].category);
+  const fmt = (s: Skill) => `${s.name}${s.level ? ` (${s.level})` : ""}`;
+
+  if (!grouped) {
+    const marker = getBulletMarker(config.bulletStyle);
+    const items = groups[0]?.items || skills;
+    return (
+      <ul className="mt-0.5 space-y-0.5">
+        {items.map((s, i) => (
+          <li key={s.id || i} className={`${textSize} flex items-start gap-1.5`} style={{ listStyleType: "none" }}>
+            {marker && <span className="shrink-0 leading-[inherit]">{marker}</span>}
+            <span>{fmt(s)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  return (
+    <div className="mt-0.5 space-y-1">
+      {groups.map((g, gi) => (
+        <p key={gi} className={textSize}>
+          {g.category && <span className="font-semibold">{g.category}: </span>}
+          {g.items.map(fmt).join(", ")}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 function parseBulletsFromDescription(description: string): string[] {
   return description
     .split("\n")
@@ -193,18 +254,22 @@ export function RenderClonedSection({
       return (
         <div key={cs.id}>
           <SectionTitle>{cs.title}</SectionTitle>
-          {(cs.items as WorkExperience[]).map((exp, i) => (
-            <div key={i} className="mb-3">
-              <div className="flex justify-between items-baseline">
-                <span className={`font-bold ${textSize} uppercase`}>{exp.company}</span>
-                <span className={subTextSize} style={{ color: subColor }}>
-                  {exp.startDate && formatDate(exp.startDate)}
-                  {(exp.startDate && (exp.endDate || exp.isCurrent)) && " \u2014 "}
-                  {exp.isCurrent ? "Present" : exp.endDate && formatDate(exp.endDate)}
-                </span>
-              </div>
-              <p className={`font-semibold ${textSize}`}>{exp.position}</p>
-              <BulletList bullets={exp.bullets} description={exp.description} bulletStyle={config.bulletStyle} className={textSize} />
+          {normalizeWorkExperience(cs.items).map((exp, i) => (
+            <div key={exp.id || i} className="mb-3">
+              <span className={`font-bold ${textSize} uppercase`}>{exp.company}</span>
+              {exp.positions.map((pos, pi) => (
+                <div key={pos.id || pi} className="mt-1">
+                  <div className="flex justify-between items-baseline">
+                    <span className={`font-semibold ${textSize}`}>{pos.title}</span>
+                    <span className={subTextSize} style={{ color: subColor }}>
+                      {pos.startDate && formatDate(pos.startDate)}
+                      {(pos.startDate && (pos.endDate || pos.isCurrent)) && " \u2014 "}
+                      {pos.isCurrent ? "Present" : pos.endDate && formatDate(pos.endDate)}
+                    </span>
+                  </div>
+                  <BulletList bullets={pos.bullets} description={pos.description} bulletStyle={config.bulletStyle} className={textSize} />
+                </div>
+              ))}
             </div>
           ))}
         </div>

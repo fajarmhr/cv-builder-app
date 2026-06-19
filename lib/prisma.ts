@@ -1,30 +1,32 @@
-import path from "node:path";
 import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-function getDbUrl(): string {
-  const dbUrl = process.env.DATABASE_URL || "file:./dev.db";
-  // If it's a file: URL with relative path, resolve it to absolute
-  if (dbUrl.startsWith("file:")) {
-    const filePath = dbUrl.slice(5); // remove "file:"
-    if (!path.isAbsolute(filePath)) {
-      const absolutePath = path.resolve(process.cwd(), filePath);
-      return "file:" + absolutePath;
-    }
+function createPrismaClient(): PrismaClient {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is not set");
   }
-  return dbUrl;
-}
-
-function createPrismaClient() {
-  const url = getDbUrl();
-  const adapter = new PrismaBetterSqlite3({ url });
+  const adapter = new PrismaPg({ connectionString });
   return new PrismaClient({ adapter });
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+function getPrisma(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient();
+  }
+  return globalForPrisma.prisma;
+}
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// Lazy proxy: the client is created on first actual use (runtime), never at
+// import time — so `next build` doesn't require DATABASE_URL to be present.
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    const client = getPrisma();
+    const value = Reflect.get(client, prop, client);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});

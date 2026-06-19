@@ -3,7 +3,6 @@ import type { Resume } from "@/generated/prisma/client";
 import type {
   ResumeData,
   PersonalInfo,
-  WorkExperience,
   Education,
   Skill,
   Certification,
@@ -15,7 +14,7 @@ import type {
   TemplateConfig,
   SectionId,
 } from "@/types/resume";
-import { parseJsonField, stringifyJsonField, DEFAULT_SECTION_ORDER } from "@/types/resume";
+import { parseJsonField, stringifyJsonField, DEFAULT_SECTION_ORDER, normalizeWorkExperience } from "@/types/resume";
 
 export function apiError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -29,7 +28,7 @@ export function parseResumeFromDb(dbResume: Resume): ResumeData {
     templateConfig: parseJsonField<TemplateConfig>(dbResume.templateConfig),
     personalInfo: parseJsonField<PersonalInfo>(dbResume.personalInfo),
     summary: dbResume.summary,
-    workExperience: parseJsonField<WorkExperience[]>(dbResume.workExperience) || [],
+    workExperience: normalizeWorkExperience(parseJsonField(dbResume.workExperience)),
     education: parseJsonField<Education[]>(dbResume.education) || [],
     skills: parseJsonField<Skill[]>(dbResume.skills) || [],
     certifications: parseJsonField<Certification[]>(dbResume.certifications) || [],

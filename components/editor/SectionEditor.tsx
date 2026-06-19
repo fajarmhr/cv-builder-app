@@ -131,18 +131,18 @@ function SortableSection({
   const Component = SECTION_COMPONENTS[sectionId];
 
   return (
-    <div ref={setNodeRef} style={style} className="border rounded-lg bg-card">
+    <div ref={setNodeRef} style={style} className="overflow-hidden rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] shadow-sm shadow-[var(--c-primary)]/8">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <button
-            className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground"
+            className="cursor-grab touch-none text-[var(--c-muted-2)] hover:text-[var(--c-ink-2)] active:cursor-grabbing"
             {...attributes}
             {...listeners}
           >
             <GripVertical className="h-4 w-4" />
           </button>
           <button
-            className="flex items-center gap-2 font-semibold text-sm hover:text-primary transition-colors min-w-0"
+            className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[var(--c-ink)] transition-colors hover:text-[var(--c-primary)]"
             onClick={onToggleCollapse}
           >
             {isCollapsed ? (
@@ -153,7 +153,7 @@ function SortableSection({
             <span className="truncate">
               {SECTION_LABELS[sectionId] || sectionId}
               {itemCount !== null && itemCount > 0 && (
-                <span className="text-muted-foreground font-normal ml-1">
+                <span className="ml-1 font-normal text-[var(--c-muted-2)]">
                   ({itemCount})
                 </span>
               )}
@@ -165,7 +165,7 @@ function SortableSection({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 rounded-full text-[var(--c-muted-2)] hover:bg-[var(--c-surface-2)] hover:text-[var(--c-primary)]"
               onClick={onDuplicateSection}
               title="Duplicate section as new card"
             >
@@ -175,7 +175,7 @@ function SortableSection({
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-8 w-8 rounded-full text-[var(--c-muted-2)] hover:bg-[var(--c-surface-3)] hover:text-[var(--c-ink-2)]"
             onClick={onToggleVisibility}
             title="Hide section"
           >
@@ -184,7 +184,7 @@ function SortableSection({
         </div>
       </div>
       {!isCollapsed && Component && (
-        <div className="px-4 pb-4">
+        <div className="border-t border-[var(--c-line)] px-4 pb-4 pt-4">
           <Component />
         </div>
       )}
@@ -231,18 +231,18 @@ function SortableCustomCard({
   if (!cs) return null;
 
   return (
-    <div ref={setNodeRef} style={style} className="border rounded-lg bg-card border-dashed border-primary/30">
+    <div ref={setNodeRef} style={style} className="overflow-hidden rounded-2xl border border-dashed border-[var(--c-border)] bg-[var(--c-surface)] shadow-sm shadow-[var(--c-primary)]/8">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <button
-            className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground"
+            className="cursor-grab touch-none text-[var(--c-muted-2)] hover:text-[var(--c-ink-2)] active:cursor-grabbing"
             {...attributes}
             {...listeners}
           >
             <GripVertical className="h-4 w-4" />
           </button>
           <button
-            className="flex items-center gap-2 font-semibold text-sm hover:text-primary transition-colors min-w-0"
+            className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[var(--c-ink)] transition-colors hover:text-[var(--c-primary)]"
             onClick={onToggleCollapse}
           >
             {isCollapsed ? (
@@ -253,7 +253,7 @@ function SortableCustomCard({
             <span className="truncate">
               {cs.title || "Untitled Section"}
               {cs.basedOn && cs.items && cs.items.length > 0 && (
-                <span className="text-muted-foreground font-normal ml-1">
+                <span className="ml-1 font-normal text-[var(--c-muted-2)]">
                   ({cs.items.length})
                 </span>
               )}
@@ -264,7 +264,7 @@ function SortableCustomCard({
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-destructive hover:text-destructive"
+            className="h-8 w-8 rounded-full text-[var(--c-danger)] hover:bg-[#f7dfd8] hover:text-[var(--c-danger)]"
             onClick={() => removeCustomCard(customId)}
             title="Delete this section"
           >
@@ -273,7 +273,7 @@ function SortableCustomCard({
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-8 w-8 rounded-full text-[var(--c-muted-2)] hover:bg-[var(--c-surface-3)] hover:text-[var(--c-ink-2)]"
             onClick={onToggleVisibility}
             title="Hide section"
           >
@@ -282,11 +282,11 @@ function SortableCustomCard({
         </div>
       </div>
       {!isCollapsed && (
-        <div className="px-4 pb-4">
+        <div className="border-t border-[var(--c-line)] px-4 pb-4 pt-4">
           {cs.basedOn ? (
             <ClonedSectionForm clonedId={customId} basedOn={cs.basedOn} />
           ) : (
-            <p className="text-sm text-muted-foreground">Plain custom section</p>
+            <p className="text-sm text-[var(--c-muted)]">Plain custom section</p>
           )}
         </div>
       )}
@@ -366,7 +366,7 @@ export function SectionEditor() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -408,14 +408,14 @@ export function SectionEditor() {
       {/* Hidden sections */}
       {hiddenSectionsList.length > 0 && (
         <div className="pt-2">
-          <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wide font-medium">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--c-muted-2)]">
             Hidden Sections
           </p>
           <div className="space-y-1">
             {hiddenSectionsList.map((sectionId) => (
               <div
                 key={sectionId}
-                className="flex items-center justify-between px-4 py-2 border rounded-lg bg-muted/50 opacity-60"
+                className="flex items-center justify-between rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface-3)] px-4 py-2 opacity-70"
               >
                 <span className="text-sm">
                   {getSectionLabel(sectionId)}
@@ -423,7 +423,7 @@ export function SectionEditor() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7"
+                  className="h-8 w-8 rounded-full hover:bg-[var(--c-surface)]"
                   onClick={() => toggleSectionVisibility(sectionId)}
                   title="Show section"
                 >
@@ -441,18 +441,18 @@ export function SectionEditor() {
           <Button
             variant="outline"
             size="sm"
-            className="w-full"
+            className="w-full rounded-full border-[var(--c-border)] bg-[var(--c-surface)] text-[var(--c-ink-2)] shadow-sm hover:bg-[var(--c-surface-2)] hover:text-[var(--c-primary)]"
             onClick={() => setShowAddMenu(!showAddMenu)}
           >
             <Plus className="h-4 w-4 mr-1.5" />
             Add Section
           </Button>
           {showAddMenu && (
-            <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border rounded-md shadow-md z-10 py-1">
+            <div className="absolute bottom-full left-0 right-0 z-10 mb-2 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] py-1 shadow-xl shadow-[var(--c-primary)]/10">
               {hiddenSectionsList.map((sectionId) => (
                 <button
                   key={sectionId}
-                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors"
+                  className="w-full px-3 py-1.5 text-left text-sm text-[var(--c-ink-2)] transition-colors hover:bg-[var(--c-surface-2)] hover:text-[var(--c-primary)]"
                   onClick={() => handleShowSection(sectionId)}
                 >
                   {getSectionLabel(sectionId)}

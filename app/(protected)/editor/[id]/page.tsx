@@ -21,6 +21,8 @@ import {
 import { toast } from "sonner";
 import { TemplateSelector } from "@/components/editor/TemplateSelector";
 import { TemplateCustomizer } from "@/components/editor/TemplateCustomizer";
+import { CVPhotoControl } from "@/components/editor/CVPhotoControl";
+import { ShareDialog } from "@/components/editor/ShareDialog";
 
 export default function EditorPage() {
   const params = useParams();
@@ -46,6 +48,7 @@ export default function EditorPage() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // Auto-save
   useAutoSave();
@@ -121,6 +124,38 @@ export default function EditorPage() {
     }
   }
 
+  // Export PDF
+  async function handleExportPdf() {
+    if (!resume) return;
+    setIsExportingPdf(true);
+    try {
+      if (isDirty) await save();
+      const res = await fetch("/api/export/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumeId: resume.id }),
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+      const filename = filenameMatch?.[1] || `CV_${resume.id}.pdf`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("PDF exported successfully!");
+    } catch {
+      toast.error("Failed to export PDF");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  }
+
   // Title editing
   function startEditTitle() {
     setEditTitleValue(resume?.title || "");
@@ -163,17 +198,17 @@ export default function EditorPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="dashboard-shell flex h-[calc(100vh-4rem)] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--c-accent)]" />
       </div>
     );
   }
 
   if (error || !resume) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] gap-4">
-        <p className="text-muted-foreground">{error || "Resume not found"}</p>
-        <Button variant="outline" onClick={() => router.push("/dashboard")}>
+      <div className="dashboard-shell flex h-[calc(100vh-4rem)] flex-col items-center justify-center gap-4">
+        <p className="text-[var(--c-muted)]">{error || "Resume not found"}</p>
+        <Button className="rounded-full bg-[var(--c-primary)] text-[var(--c-on-primary)] hover:bg-[var(--c-primary-hover)]" onClick={() => router.push("/dashboard")}>
           Back to Dashboard
         </Button>
       </div>
@@ -181,14 +216,14 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="dashboard-shell flex h-[calc(100vh-4rem)] flex-col">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-card gap-2">
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--c-border)] bg-[var(--c-surface)]/90 px-4 py-3 shadow-sm backdrop-blur">
         <div className="flex items-center gap-2 min-w-0">
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0"
+            className="h-9 w-9 shrink-0 rounded-full text-[var(--c-muted)] hover:bg-[var(--c-surface-2)] hover:text-[var(--c-primary)]"
             onClick={async () => {
               if (isDirty) {
                 try { await save(); } catch { /* best effort */ }
@@ -201,7 +236,7 @@ export default function EditorPage() {
 
           {isEditingTitle ? (
             <input
-              className="font-semibold bg-transparent border-b border-primary outline-none min-w-0"
+              className="min-w-0 border-b border-[var(--c-ring)] bg-transparent font-semibold text-[var(--c-ink)] outline-none"
               value={editTitleValue}
               onChange={(e) => setEditTitleValue(e.target.value)}
               onBlur={saveTitleEdit}
@@ -213,7 +248,7 @@ export default function EditorPage() {
             />
           ) : (
             <h1
-              className="font-semibold truncate cursor-pointer hover:text-primary transition-colors"
+              className="cursor-pointer truncate font-semibold text-[var(--c-ink)] transition-colors hover:text-[var(--c-primary)]"
               onDoubleClick={startEditTitle}
               title="Double-click to rename"
             >
@@ -227,11 +262,12 @@ export default function EditorPage() {
         <div className="flex items-center gap-1 shrink-0">
           <TemplateSelector />
           <TemplateCustomizer />
-          <div className="w-px h-5 bg-border mx-1" />
+          <CVPhotoControl />
+          <div className="mx-1 h-5 w-px bg-[var(--c-border)]" />
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-9 w-9 rounded-full text-[var(--c-muted)] hover:bg-[var(--c-surface-3)] hover:text-[var(--c-ink)]"
             onClick={undo}
             disabled={!canUndo}
             title="Undo (Ctrl+Z)"
@@ -241,7 +277,7 @@ export default function EditorPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-9 w-9 rounded-full text-[var(--c-muted)] hover:bg-[var(--c-surface-3)] hover:text-[var(--c-ink)]"
             onClick={redo}
             disabled={!canRedo}
             title="Redo (Ctrl+Shift+Z)"
@@ -251,20 +287,33 @@ export default function EditorPage() {
           <Button
             variant="outline"
             size="sm"
+            className="rounded-full border-[var(--c-border)] bg-[var(--c-surface)] text-[var(--c-ink-2)] shadow-sm hover:bg-[var(--c-surface-3)]"
             onClick={() => save().catch(() => toast.error("Failed to save"))}
             disabled={isSaving || !isDirty}
           >
             <Save className="h-4 w-4 mr-1.5" />
             Save
           </Button>
+          <ShareDialog resumeId={resume.id} />
           <Button
-            variant="default"
+            variant="outline"
             size="sm"
+            className="rounded-full border-[var(--c-border)] bg-[var(--c-surface)] text-[var(--c-ink-2)] shadow-sm hover:bg-[var(--c-surface-3)]"
             onClick={handleExportDocx}
             disabled={isExporting}
           >
             <FileDown className="h-4 w-4 mr-1.5" />
-            {isExporting ? "Exporting..." : "DOCX"}
+            {isExporting ? "..." : "DOCX"}
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            className="rounded-full bg-[var(--c-primary)] text-[var(--c-on-primary)] shadow-sm hover:bg-[var(--c-primary-hover)]"
+            onClick={handleExportPdf}
+            disabled={isExportingPdf}
+          >
+            <FileDown className="h-4 w-4 mr-1.5" />
+            {isExportingPdf ? "..." : "PDF"}
           </Button>
         </div>
       </div>

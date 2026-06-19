@@ -528,9 +528,10 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
 
     const newHistory = pushHistory(history, resume);
     const currentConfig = resume.templateConfig || {
-      primaryColor: "#1a1a1a",
-      accentColor: "#2563eb",
-      fontFamily: "sans-serif",
+      primaryColor: "#1b2230",
+      accentColor: "#a3585c",
+      fontFamily: "source-sans-3",
+      headerFontFamily: "merriweather",
       fontSize: "medium",
       lineSpacing: "normal",
     };

@@ -1,27 +1,13 @@
 "use client";
 
 import type { TemplateConfig } from "@/types/resume";
+import { getTemplateFont } from "@/lib/template-fonts";
 
 interface TemplateWrapperProps {
   config: TemplateConfig;
   children: React.ReactNode;
   padding?: string;
 }
-
-const FONT_MAP: Record<string, string> = {
-  "sans-serif": "'Inter', 'Helvetica Neue', Arial, sans-serif",
-  inter: "'Inter', 'Helvetica Neue', Arial, sans-serif",
-  lato: "'Lato', 'Helvetica Neue', Arial, sans-serif",
-  raleway: "'Raleway', 'Helvetica Neue', Arial, sans-serif",
-  montserrat: "'Montserrat', 'Helvetica Neue', Arial, sans-serif",
-  roboto: "'Roboto', 'Helvetica Neue', Arial, sans-serif",
-  garamond: "'EB Garamond', Garamond, 'Times New Roman', serif",
-  calibri: "Calibri, 'Segoe UI', sans-serif",
-  arial: "Arial, Helvetica, sans-serif",
-  helvetica: "'Helvetica Neue', Helvetica, Arial, sans-serif",
-  georgia: "Georgia, 'Times New Roman', serif",
-  "times-new-roman": "'Times New Roman', Times, serif",
-};
 
 const FONT_SIZE_MAP: Record<string, string> = {
   small: "10pt",
@@ -46,7 +32,10 @@ export function TemplateWrapper({
   children,
   padding = "2.54cm",
 }: TemplateWrapperProps) {
-  const fontFamily = FONT_MAP[config.fontFamily] || FONT_MAP["sans-serif"];
+  const fontFamily = getTemplateFont(config.fontFamily).cssFamily;
+  const headerFontFamily = getTemplateFont(
+    config.headerFontFamily || config.fontFamily
+  ).cssFamily;
   const fontSize = FONT_SIZE_MAP[config.fontSize] || FONT_SIZE_MAP["medium"];
   const lineSpacing = LINE_SPACING_MAP[config.lineSpacing] || LINE_SPACING_MAP["normal"];
   const scale = SCALE_MAP[config.fontSize] || 1;
@@ -60,14 +49,24 @@ export function TemplateWrapper({
           fontSize,
           lineHeight: lineSpacing,
           padding,
-          "--primary-color": config.primaryColor || "#1a1a1a",
-          "--accent-color": config.accentColor || "#2563eb",
+          "--primary-color": config.primaryColor || "#1b2230",
+          "--accent-color": config.accentColor || "#a3585c",
+          "--header-font-family": headerFontFamily,
           "--font-size": fontSize,
           "--line-spacing": lineSpacing,
           "--cv-scale": scale,
         } as React.CSSProperties
       }
     >
+      <style>
+        {`
+          .cv-template-root h1,
+          .cv-template-root h2,
+          .cv-template-root h3 {
+            font-family: var(--header-font-family);
+          }
+        `}
+      </style>
       {children}
     </div>
   );

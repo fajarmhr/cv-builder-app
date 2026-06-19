@@ -14,70 +14,43 @@ export interface TemplateMeta {
   layoutType: "single-column" | "two-column";
 }
 
-// Lazy-loaded template components for better performance
+/**
+ * Top 3 ATS templates curated for international recruiters.
+ * All single-column, photo-free, reverse-chronological — the safest, most
+ * widely-accepted formats across US / UK / EU / CA / AU hiring systems.
+ *   ats-001 Classic  — the strongest all-rounder (left as the reference)
+ *   ats-002 Modern   — left-aligned name with an accent section rule
+ *   ats-007 Minimal  — name left / contact right, hairline dividers
+ */
 const TEMPLATE_MAP: Record<string, ComponentType<TemplateProps>> = {
-  // ATS (7)
   "ats-001": lazy(() => import("./ats/Ats001Template").then((m) => ({ default: m.Ats001Template }))),
   "ats-002": lazy(() => import("./ats/Ats002Template").then((m) => ({ default: m.Ats002Template }))),
-  "ats-003": lazy(() => import("./ats/Ats003Template").then((m) => ({ default: m.Ats003Template }))),
-  "ats-004": lazy(() => import("./ats/Ats004Template").then((m) => ({ default: m.Ats004Template }))),
-  "ats-005": lazy(() => import("./ats/Ats005Template").then((m) => ({ default: m.Ats005Template }))),
-  "ats-006": lazy(() => import("./ats/Ats006Template").then((m) => ({ default: m.Ats006Template }))),
   "ats-007": lazy(() => import("./ats/Ats007Template").then((m) => ({ default: m.Ats007Template }))),
 };
 
-// Eagerly loaded fallback
+// Eagerly loaded fallback (also catches any legacy templateId still in the DB)
 const FALLBACK_LOADER = lazy(() => import("./ats/Ats001Template").then((m) => ({ default: m.Ats001Template })));
 
 const TEMPLATE_META: TemplateMeta[] = [
-  // ATS (7)
   {
     id: "ats-001",
-    name: "ATS Classic",
+    name: "Classic",
     category: "ATS",
-    description: "Centered header, bold section headings with underline, black & white",
+    description: "Centered name, bold underlined headings. The safest international default.",
     layoutType: "single-column",
   },
   {
     id: "ats-002",
-    name: "ATS Modern",
+    name: "Modern",
     category: "ATS",
-    description: "Left-aligned name, colored underline on sections, clean modern",
-    layoutType: "single-column",
-  },
-  {
-    id: "ats-003",
-    name: "ATS Compact",
-    category: "ATS",
-    description: "Two-column with photo, bordered section headings, compact",
-    layoutType: "two-column",
-  },
-  {
-    id: "ats-004",
-    name: "ATS Professional",
-    category: "ATS",
-    description: "Large uppercase name, double-line dividers, italic section headings",
-    layoutType: "single-column",
-  },
-  {
-    id: "ats-005",
-    name: "ATS Sidebar",
-    category: "ATS",
-    description: "Photo + contact sidebar, accent left-border section headings",
-    layoutType: "two-column",
-  },
-  {
-    id: "ats-006",
-    name: "ATS Executive",
-    category: "ATS",
-    description: "Date column + content, letter-spaced headings, horizontal rules",
+    description: "Left-aligned name with an accent section rule. Clean and contemporary.",
     layoutType: "single-column",
   },
   {
     id: "ats-007",
-    name: "ATS Minimal",
+    name: "Minimal",
     category: "ATS",
-    description: "Name left + contact right, thin dividers, clean minimal",
+    description: "Name left, contact right, hairline dividers. Understated and editorial.",
     layoutType: "single-column",
   },
 ];
@@ -92,10 +65,18 @@ export function getAllTemplates(): TemplateMeta[] {
   return TEMPLATE_META;
 }
 
+/** Map any (incl. legacy) templateId to one of the 3 supported ones. */
+export function normalizeTemplateId(templateId: string | undefined | null): string {
+  return templateId && TEMPLATE_MAP[templateId] ? templateId : "ats-001";
+}
+
+// Résumé output palette — aligned with the app's Fog & Slate theme.
+// Navy ink for headings, Clay accent for rules.
 export const DEFAULT_TEMPLATE_CONFIG: TemplateConfig = {
-  primaryColor: "#1a1a1a",
-  accentColor: "#2563eb",
-  fontFamily: "sans-serif",
+  primaryColor: "#1b2230",
+  accentColor: "#a3585c",
+  fontFamily: "source-sans-3",
+  headerFontFamily: "merriweather",
   fontSize: "medium",
   lineSpacing: "normal",
 };

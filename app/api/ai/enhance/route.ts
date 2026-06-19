@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getUserId } from "@/lib/auth";
 
 const XAI_API_URL = "https://api.x.ai/v1/chat/completions";
 const XAI_API_KEY = process.env.XAI_API_KEY || "";
@@ -39,6 +40,11 @@ Rules:
 
 export async function POST(request: NextRequest) {
   try {
+    const userId = await getUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     if (!XAI_API_KEY) {
       return NextResponse.json(
         { error: "AI not configured. Set XAI_API_KEY in .env" },

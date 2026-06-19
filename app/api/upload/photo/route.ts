@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import { existsSync } from "fs";
+import { createId } from "@paralleldrive/cuid2";
+import { getUserId } from "@/lib/auth";
+import { uploadToStorage } from "@/lib/storage";
 
-const UPLOAD_DIR = path.join(process.cwd(), "storage", "photos");
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export async function POST(request: NextRequest) {
   try {
+    const userId = await getUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const file = formData.get("photo") as File | null;
 
@@ -30,24 +34,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ensure upload dir exists
-    if (!existsSync(UPLOAD_DIR)) {
-      await mkdir(UPLOAD_DIR, { recursive: true });
-    }
-
-    // Generate unique filename
-    const ext = file.name.split(".").pop() || "jpg";
-    const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const filepath = path.join(UPLOAD_DIR, filename);
-
-    // Write file
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const objectPath = `photos/${userId}/${createId()}.${ext}`;
     const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(filepath, buffer);
 
-    // Return the URL path that can be used to serve the image
-    const photoUrl = `/api/upload/photo/${filename}`;
+    const photoUrl = await uploadToStorage(objectPath, buffer, file.type);
 
-    return NextResponse.json({ photoUrl, filename });
+    return NextResponse.json({ photoUrl });
   } catch (error) {
     console.error("Photo upload error:", error);
     return NextResponse.json(

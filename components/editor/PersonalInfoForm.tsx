@@ -3,17 +3,12 @@
 import { useResumeStore } from "@/lib/store/resume-store";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import type { PersonalInfo } from "@/types/resume";
-import { useRef, useCallback, useState } from "react";
-import { Camera, X, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { useRef, useCallback } from "react";
 
 export function PersonalInfoForm() {
   const { resume, updatePersonalInfo } = useResumeStore();
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
 
   const info: PersonalInfo = resume?.personalInfo || {
     name: "",
@@ -37,45 +32,6 @@ export function PersonalInfoForm() {
     [updatePersonalInfo]
   );
 
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Photo must be smaller than 5MB");
-      return;
-    }
-
-    setIsUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("photo", file);
-
-      const res = await fetch("/api/upload/photo", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Failed to upload photo");
-        return;
-      }
-
-      updatePersonalInfo("photoUrl", data.photoUrl);
-      toast.success("Photo uploaded!");
-    } catch {
-      toast.error("Failed to upload photo");
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }
-
-  function handleRemovePhoto() {
-    updatePersonalInfo("photoUrl", "");
-  }
-
   const fields: {
     key: keyof PersonalInfo;
     label: string;
@@ -92,79 +48,10 @@ export function PersonalInfoForm() {
 
   return (
     <div className="space-y-4">
-      {/* Photo Upload */}
-      <div className="flex items-center gap-4">
-        <div className="relative">
-          {info.photoUrl ? (
-            <div className="relative group">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={info.photoUrl}
-                alt="Profile"
-                className="w-20 h-20 rounded-full object-cover border-2 border-border"
-              />
-              <button
-                onClick={handleRemovePhoto}
-                className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Remove photo"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ) : (
-            <div
-              className="w-20 h-20 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {isUploading ? (
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              ) : (
-                <Camera className="h-6 w-6 text-muted-foreground" />
-              )}
-            </div>
-          )}
-        </div>
-        <div className="flex-1">
-          <Label className="text-xs block mb-1">Profile Photo</Label>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-            >
-              {isUploading ? "Uploading..." : info.photoUrl ? "Change Photo" : "Upload Photo"}
-            </Button>
-            {info.photoUrl && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-destructive"
-                onClick={handleRemovePhoto}
-              >
-                Remove
-              </Button>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            JPG, PNG, WebP. Max 5MB.
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className="hidden"
-            onChange={handlePhotoUpload}
-          />
-        </div>
-      </div>
-
-      {/* Text Fields */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {fields.map(({ key, label, type, placeholder }) => (
           <div key={key} className={key === "address" ? "sm:col-span-2" : ""}>
-            <Label htmlFor={`pi-${key}`} className="text-xs mb-1 block">
+            <Label htmlFor={`pi-${key}`} className="text-xs mb-1.5 block font-medium text-[var(--c-muted)]">
               {label}
             </Label>
             <Input
@@ -173,7 +60,7 @@ export function PersonalInfoForm() {
               placeholder={placeholder}
               defaultValue={info[key]}
               onChange={(e) => handleChange(key, e.target.value)}
-              className="h-9 text-sm"
+              className="h-10 rounded-xl border-[var(--c-border)] bg-[var(--c-surface)] text-sm text-[var(--c-ink)] shadow-sm placeholder:text-[var(--c-muted-2)] focus-visible:ring-[var(--c-ring)]/20"
             />
           </div>
         ))}

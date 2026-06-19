@@ -2,21 +2,27 @@
 
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
-import type { SectionId } from "@/types/resume";
-import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, getBulletMarker, findCustomSection, isCustomSectionId, RenderClonedSection } from "../template-helpers";
+import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection } from "../template-helpers";
 
 /**
- * ATS007 - Name left + contact info right, thin horizontal line dividers,
- * clean minimal single-column.
- * Based on reference ats007.jpg (EDGAR MACKENZIE style)
+ * ATS007 — Minimal. Name left / contact right with a strong rule beneath,
+ * hairline section dividers, single-column. Polished for international
+ * recruiters: summary now renders as a lead paragraph, dates formatted.
+ * Mirrors the PDF/DOCX "minimal" variant exactly.
  */
 export function Ats007Template({ resume, config }: TemplateProps) {
   const info = resume.personalInfo;
   const visible = getVisibleSections(resume);
 
+  const dateRange = (start?: string, end?: string, isCurrent?: boolean) => {
+    const s = start ? formatDate(start) : "";
+    const e = isCurrent ? "Present" : end ? formatDate(end) : "";
+    return [s, e].filter(Boolean).join(" \u2013 ");
+  };
+
   const SectionTitle = ({ children }: { children: React.ReactNode }) => (
     <div className="mb-1.5 mt-4">
-      <h2 className="text-xs font-bold uppercase tracking-wide mb-1">{children}</h2>
+      <h2 className="text-xs font-bold uppercase tracking-[0.18em] mb-1">{children}</h2>
       <hr style={{ borderColor: "#ccc" }} />
     </div>
   );
@@ -24,20 +30,26 @@ export function Ats007Template({ resume, config }: TemplateProps) {
   const sectionRenderers: Record<string, () => React.ReactNode> = {
     personalInfo: () =>
       info ? (
-        <div key="pi" className="mb-4 flex justify-between items-end pb-2 border-b-2 border-black">
+        <div key="pi" className="mb-3 flex justify-between items-end pb-2 border-b-2 border-black gap-4">
           <div className="flex items-center gap-3">
             <ProfilePhoto photoUrl={info.photoUrl} name={info.name} size={48} />
-            <h1 className="text-2xl font-bold uppercase">{info.name}</h1>
+            <h1 className="text-2xl font-bold uppercase tracking-wide">{info.name}</h1>
           </div>
-          <div className="text-right text-[9px]" style={{ color: "#555" }}>
+          <div className="text-right text-[9px] leading-relaxed shrink-0" style={{ color: "#555" }}>
             {info.address && <p>{info.address}</p>}
-            {info.phone && <p>Phone: {info.phone}</p>}
-            {info.email && <p>Email: {info.email}</p>}
+            {info.phone && <p>{info.phone}</p>}
+            {info.email && <p>{info.email}</p>}
+            {info.linkedin && <p>{info.linkedin}</p>}
           </div>
         </div>
       ) : null,
 
-    summary: () => null,
+    summary: () =>
+      resume.summary ? (
+        <p key="sum" className="text-[10px] leading-relaxed mb-1 whitespace-pre-line" style={{ color: "#333" }}>
+          {resume.summary}
+        </p>
+      ) : null,
 
     workExperience: () =>
       hasContent(resume, "workExperience") ? (
@@ -45,19 +57,23 @@ export function Ats007Template({ resume, config }: TemplateProps) {
           <SectionTitle>Work Experience</SectionTitle>
           {resume.workExperience.map((exp, i) => (
             <div key={exp.id || i} className="mb-3">
-              <div className="flex justify-between items-baseline">
-                <span className="font-bold text-xs uppercase">{exp.position}</span>
-                <span className="text-[10px]" style={{ color: "#555" }}>
-                  {exp.startDate} {"\u2013"} {exp.isCurrent ? "present" : exp.endDate}
-                </span>
-              </div>
-              <p className="text-[10px] font-semibold">{exp.company}</p>
-              <BulletList
-                bullets={exp.bullets}
-                description={exp.description}
-                bulletStyle={config.bulletStyle}
-                className="text-[10px]"
-              />
+              <p className="font-bold text-xs uppercase tracking-wide">{exp.company}</p>
+              {exp.positions.map((pos, pi) => (
+                <div key={pos.id || pi} className="mt-0.5">
+                  <div className="flex justify-between items-baseline gap-3">
+                    <span className="text-[10px] font-semibold">{pos.title}</span>
+                    <span className="text-[10px] shrink-0" style={{ color: "#555" }}>
+                      {dateRange(pos.startDate, pos.endDate, pos.isCurrent)}
+                    </span>
+                  </div>
+                  <BulletList
+                    bullets={pos.bullets}
+                    description={pos.description}
+                    bulletStyle={config.bulletStyle}
+                    className="text-[10px]"
+                  />
+                </div>
+              ))}
             </div>
           ))}
         </div>
@@ -69,12 +85,12 @@ export function Ats007Template({ resume, config }: TemplateProps) {
           <SectionTitle>Education</SectionTitle>
           {resume.education.map((edu, i) => (
             <div key={edu.id || i} className="mb-2">
-              <div className="flex justify-between items-baseline">
+              <div className="flex justify-between items-baseline gap-3">
                 <span className="font-bold text-[10px]">
                   {edu.degree}{edu.fieldOfStudy ? ` in ${edu.fieldOfStudy}` : ""}
                 </span>
-                <span className="text-[10px]" style={{ color: "#555" }}>
-                  {edu.startDate} {"\u2013"} {edu.endDate}
+                <span className="text-[10px] shrink-0" style={{ color: "#555" }}>
+                  {dateRange(edu.startDate, edu.endDate)}
                 </span>
               </div>
               <p className="text-[10px]">{edu.institution}</p>
@@ -84,22 +100,13 @@ export function Ats007Template({ resume, config }: TemplateProps) {
         </div>
       ) : null,
 
-    skills: () => {
-      const marker = getBulletMarker(config.bulletStyle);
-      return hasContent(resume, "skills") ? (
+    skills: () =>
+      hasContent(resume, "skills") ? (
         <div key="sk">
-          <SectionTitle>Skills &amp; Other</SectionTitle>
-          <ul className="mt-0.5 space-y-0.5">
-            {resume.skills.map((s, i) => (
-              <li key={s.id || i} className="text-[10px] flex items-start gap-1.5" style={{ listStyleType: "none" }}>
-                {marker && <span className="shrink-0 leading-[inherit]">{marker}</span>}
-                <span>{s.name}{s.level ? ` (${s.level})` : ""}</span>
-              </li>
-            ))}
-          </ul>
+          <SectionTitle>Skills</SectionTitle>
+          <SkillsBlock skills={resume.skills} config={config} textSize="text-[10px]" />
         </div>
-      ) : null;
-    },
+      ) : null,
 
     certifications: () =>
       hasContent(resume, "certifications") ? (
@@ -132,13 +139,11 @@ export function Ats007Template({ resume, config }: TemplateProps) {
           <SectionTitle>Projects</SectionTitle>
           {resume.projects.map((p, i) => (
             <div key={p.id || i} className="mb-2">
-              <div className="flex justify-between items-baseline">
+              <div className="flex justify-between items-baseline gap-3">
                 <p className="font-bold text-[10px]">{p.name}</p>
                 {(p.startDate || p.endDate) && (
-                  <span className="text-[9px]" style={{ color: "#555" }}>
-                    {p.startDate && formatDate(p.startDate)}
-                    {p.startDate && p.endDate && " \u2013 "}
-                    {p.endDate && formatDate(p.endDate)}
+                  <span className="text-[10px] shrink-0" style={{ color: "#555" }}>
+                    {dateRange(p.startDate, p.endDate)}
                   </span>
                 )}
               </div>
@@ -157,7 +162,7 @@ export function Ats007Template({ resume, config }: TemplateProps) {
         <div key="aw">
           <SectionTitle>Awards</SectionTitle>
           {resume.awards.map((a, i) => (
-            <p key={a.id || i} className="text-[10px] mb-1">{a.title}{a.date ? ` (${formatDate(a.date)})` : ""}</p>
+            <p key={a.id || i} className="text-[10px] mb-1">{a.title}{a.issuer ? ` \u2014 ${a.issuer}` : ""}{a.date ? ` (${formatDate(a.date)})` : ""}</p>
           ))}
         </div>
       ) : null,
@@ -203,7 +208,7 @@ export function Ats007Template({ resume, config }: TemplateProps) {
           return (
             <div key={s}>
               <SectionTitle>{cs.title}</SectionTitle>
-              <p className="text-xs whitespace-pre-wrap">{cs.content}</p>
+              <p className="text-[10px] whitespace-pre-wrap">{cs.content}</p>
             </div>
           );
         }

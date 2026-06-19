@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 generator client {
@@ -7,8 +7,22 @@ generator client {
   output   = "../generated/prisma"
 }
 
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  fullName     String
+  resumes      Resume[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model Resume {
   id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shareToken     String?  @unique // stable per-resume token for portfolio read/download access
+  isPublished    Boolean  @default(false) // when true, shareToken endpoints are reachable
   title          String   @default("Untitled Resume")
   templateId     String   @default("ats-001")
   templateConfig String? // JSON string: {primaryColor, accentColor, fontFamily, fontSize, lineSpacing}
@@ -28,4 +42,6 @@ model Resume {
   uploadedFile   String? // path to original uploaded file
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([userId])
 }

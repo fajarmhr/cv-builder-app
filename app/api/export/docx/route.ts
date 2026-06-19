@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseResumeFromDb } from "@/lib/utils/api-helpers";
-import { generateDocx } from "@/lib/export/docx-generator";
+import { docxFilename, generateDocx } from "@/lib/export/docx-generator";
 import { DEFAULT_TEMPLATE_CONFIG } from "@/components/templates/TemplateRegistry";
+import { getUserId } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { resumeId } = await req.json();
 
     if (!resumeId) {
       return NextResponse.json({ error: "resumeId is required" }, { status: 400 });
     }
 
-    const dbResume = await prisma.resume.findUnique({ where: { id: resumeId } });
+    const dbResume = await prisma.resume.findFirst({ where: { id: resumeId, userId } });
 
     if (!dbResume) {
       return NextResponse.json({ error: "Resume not found" }, { status: 404 });
@@ -23,18 +29,11 @@ export async function POST(req: NextRequest) {
 
     const buffer = await generateDocx(resume, resume.templateId, config);
 
-    const safeName = (resume.personalInfo?.name || resume.title || "Resume")
-      .replace(/[^a-zA-Z0-9_\- ]/g, "")
-      .trim()
-      .replace(/\s+/g, "_");
-
-    const filename = `CV_${safeName}.docx`;
-
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": `attachment; filename="${docxFilename(resume)}"`,
       },
     });
   } catch (error) {

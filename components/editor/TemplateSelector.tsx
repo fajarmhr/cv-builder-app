@@ -42,28 +42,28 @@ export function TemplateSelector() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5">
+        <Button variant="outline" size="sm" className="gap-1.5 rounded-full border-[var(--c-border)] bg-[var(--c-surface)] text-[var(--c-ink-2)] shadow-sm hover:bg-[var(--c-surface-2)] hover:text-[var(--c-primary)]">
           <LayoutTemplate className="h-4 w-4" />
           <span className="hidden sm:inline">Template</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col rounded-3xl border-[var(--c-border)] bg-[var(--c-surface)]">
         <DialogHeader>
           <DialogTitle>Choose Template</DialogTitle>
         </DialogHeader>
 
         {/* Category tabs */}
-        <div className="flex gap-1 border-b pb-2 flex-wrap">
+        <div className="flex flex-wrap gap-1 border-b border-[var(--c-line)] pb-2">
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+              className={`rounded-full px-3 py-1.5 text-sm transition-colors ${
                 activeCategory === cat.id
-                  ? "bg-primary text-primary-foreground font-medium"
-                  : "text-muted-foreground hover:bg-muted"
+                  ? "bg-[var(--c-primary)] text-[var(--c-on-primary)] font-medium"
+                  : "text-[var(--c-muted)] hover:bg-[var(--c-surface-2)] hover:text-[var(--c-primary)]"
               }`}
             >
               {cat.label}
@@ -87,15 +87,15 @@ export function TemplateSelector() {
                 <button
                   key={t.id}
                   onClick={() => handleSelect(t.id)}
-                  className={`relative text-left border rounded-lg p-2.5 transition-all hover:shadow-lg group ${
+                  className={`group relative rounded-2xl border p-2.5 text-left transition-all hover:shadow-lg ${
                     isActive
-                      ? "border-primary ring-2 ring-primary/20 bg-primary/5"
-                      : "hover:border-primary/50"
+                      ? "border-[var(--c-ring)] bg-[var(--c-surface-2)]/70 ring-2 ring-[var(--c-accent)]/30"
+                      : "border-[var(--c-border)] hover:border-[var(--c-accent)]/50"
                   }`}
                   style={{ "--thumb-scale": "0.30" } as React.CSSProperties}
                 >
                   {isActive && (
-                    <div className="absolute top-3 right-3 z-10 bg-primary text-primary-foreground rounded-full p-0.5">
+                    <div className="absolute top-3 right-3 z-10 rounded-full bg-[var(--c-accent)] p-0.5 text-[var(--c-on-primary)]">
                       <Check className="h-3.5 w-3.5" />
                     </div>
                   )}
@@ -111,8 +111,8 @@ export function TemplateSelector() {
                     )}
                   </div>
 
-                  <p className="font-semibold text-sm truncate">{t.name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                  <p className="truncate text-sm font-semibold text-[var(--c-ink)]">{t.name}</p>
+                  <p className="mt-0.5 line-clamp-1 text-xs text-[var(--c-muted)]">
                     {t.description}
                   </p>
                   <div className="mt-1.5 flex gap-1.5">

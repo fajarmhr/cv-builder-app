@@ -3,7 +3,7 @@
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
 import type { SectionId } from "@/types/resume";
-import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, getBulletMarker, findCustomSection, isCustomSectionId, RenderClonedSection } from "../template-helpers";
+import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection } from "../template-helpers";
 
 /**
  * ATS003 - Two-column with photo, section headings in bordered boxes,
@@ -36,7 +36,7 @@ export function Ats003Template({ resume, config }: TemplateProps) {
         return resume.summary ? (
           <div key="sum">
             <SectionTitle>Profile</SectionTitle>
-            <p className="text-[10px] leading-relaxed">{resume.summary}</p>
+            <p className="text-[10px] leading-relaxed whitespace-pre-line">{resume.summary}</p>
           </div>
         ) : null;
 
@@ -46,14 +46,18 @@ export function Ats003Template({ resume, config }: TemplateProps) {
             <SectionTitle>Work Experience</SectionTitle>
             {resume.workExperience.map((exp, i) => (
               <div key={exp.id || i} className="mb-2.5">
-                <div className="flex justify-between items-baseline">
-                  <span className="font-bold text-[10px]">{exp.position}</span>
-                  <span className="text-[9px]" style={{ color: "#666" }}>
-                    {exp.startDate} - {exp.isCurrent ? "Present" : exp.endDate}
-                  </span>
-                </div>
-                <p className="text-[10px] italic" style={{ color: "#555" }}>{exp.company}</p>
-                <BulletList bullets={exp.bullets} description={exp.description} bulletStyle={config.bulletStyle} className="text-[10px]" />
+                <p className="font-bold text-[10px]">{exp.company}</p>
+                {exp.positions.map((pos, pi) => (
+                  <div key={pos.id || pi} className="mt-0.5">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-[10px] italic" style={{ color: "#555" }}>{pos.title}</span>
+                      <span className="text-[9px]" style={{ color: "#666" }}>
+                        {pos.startDate} - {pos.isCurrent ? "Present" : pos.endDate}
+                      </span>
+                    </div>
+                    <BulletList bullets={pos.bullets} description={pos.description} bulletStyle={config.bulletStyle} className="text-[10px]" />
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -81,18 +85,10 @@ export function Ats003Template({ resume, config }: TemplateProps) {
         ) : null;
 
       case "skills": {
-        const marker = getBulletMarker(config.bulletStyle);
         return hasContent(resume, "skills") ? (
           <div key="sk">
             <SectionTitle>Skills</SectionTitle>
-            <ul className="mt-0.5 space-y-0.5">
-              {resume.skills.map((s, i) => (
-                <li key={s.id || i} className="text-[10px] flex items-start gap-1.5" style={{ listStyleType: "none" }}>
-                  {marker && <span className="shrink-0 leading-[inherit]">{marker}</span>}
-                  <span>{s.name}{s.level ? ` (${s.level})` : ""}</span>
-                </li>
-              ))}
-            </ul>
+            <SkillsBlock skills={resume.skills} config={config} textSize="text-[10px]" />
           </div>
         ) : null;
       }

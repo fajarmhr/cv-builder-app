@@ -1,4 +1,14 @@
 import type { TemplateConfig } from "@/types/resume";
+import { AlignmentType } from "docx";
+import { getTemplateFont } from "@/lib/template-fonts";
+
+function variantFor(templateId?: string): DocxVariant {
+  if (templateId === "ats-002") return "modern";
+  if (templateId === "ats-007") return "minimal";
+  return "classic";
+}
+
+export type DocxVariant = "classic" | "modern" | "minimal";
 
 export interface DocxStyleConfig {
   titleSize: number;       // half-points
@@ -6,8 +16,12 @@ export interface DocxStyleConfig {
   heading3Size: number;
   normalSize: number;
   fontFamily: string;
+  headerFontFamily: string;
   accentColor: string;     // hex without #
   headingTextColor: string; // hex without # — dark color for section heading text
+  variant: DocxVariant;
+  headerAlign: (typeof AlignmentType)[keyof typeof AlignmentType];
+  sectionRuleColor: string; // hex without # — colour of the rule under headings
   bulletStyle: TemplateConfig["bulletStyle"]; // disc, dash, arrow, square, none
   spacing: {
     after: number;         // twips (1/20th of a point)
@@ -20,21 +34,6 @@ export interface DocxStyleConfig {
     left: number;
   };
 }
-
-const FONT_MAP: Record<string, string> = {
-  "sans-serif": "Inter",
-  inter: "Inter",
-  lato: "Lato",
-  raleway: "Raleway",
-  montserrat: "Montserrat",
-  roboto: "Roboto",
-  garamond: "EB Garamond",
-  calibri: "Calibri",
-  arial: "Arial",
-  helvetica: "Helvetica",
-  georgia: "Georgia",
-  "times-new-roman": "Times New Roman",
-};
 
 const SIZE_MAP: Record<string, number> = {
   small: 20,   // 10pt in half-points
@@ -52,17 +51,29 @@ function hexColorClean(color: string): string {
   return color.replace("#", "");
 }
 
-export function getDocxStyles(config: TemplateConfig): DocxStyleConfig {
+export function getDocxStyles(config: TemplateConfig, templateId?: string): DocxStyleConfig {
   const normalSize = SIZE_MAP[config.fontSize] || 22;
+  const variant = variantFor(templateId);
+  const accentColor = hexColorClean(config.accentColor || "#a3585c");
+
+  // Heading rule colour mirrors each template's on-screen identity
+  const sectionRuleColor =
+    variant === "modern" ? accentColor : variant === "minimal" ? "cccccc" : "000000";
 
   return {
     titleSize: normalSize + 16,    // +8pt for title
     heading2Size: normalSize + 6,  // +3pt for section headings
     heading3Size: normalSize + 2,  // +1pt for sub-headings
     normalSize,
-    fontFamily: FONT_MAP[config.fontFamily] || "Inter",
-    accentColor: hexColorClean(config.accentColor || "#2563eb"),
-    headingTextColor: hexColorClean(config.primaryColor || "#1a1a1a"),
+    fontFamily: getTemplateFont(config.fontFamily).docxFamily,
+    headerFontFamily: getTemplateFont(
+      config.headerFontFamily || config.fontFamily
+    ).docxFamily,
+    accentColor,
+    headingTextColor: hexColorClean(config.primaryColor || "#1b2230"),
+    variant,
+    headerAlign: variant === "classic" ? AlignmentType.CENTER : AlignmentType.LEFT,
+    sectionRuleColor,
     bulletStyle: config.bulletStyle || "disc",
     spacing: {
       after: 120,

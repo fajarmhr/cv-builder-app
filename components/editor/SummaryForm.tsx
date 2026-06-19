@@ -31,7 +31,7 @@ export function SummaryForm() {
     // Get context from work experience if available
     const firstJob = resume?.workExperience?.[0];
     const context = firstJob
-      ? { jobTitle: firstJob.position, company: firstJob.company }
+      ? { jobTitle: firstJob.positions?.[0]?.title, company: firstJob.company }
       : undefined;
 
     const enhanced = await enhance({

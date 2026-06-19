@@ -30,27 +30,37 @@ const SAMPLE_RESUME: ResumeData = {
     {
       id: "w1",
       company: "Tech Corp",
-      position: "Senior Software Engineer",
-      startDate: "2021-01",
-      endDate: "",
-      isCurrent: true,
-      description: "",
-      bullets: [
-        "Led development of microservices architecture serving 2M+ users",
-        "Mentored team of 5 junior developers",
+      positions: [
+        {
+          id: "w1p1",
+          title: "Senior Software Engineer",
+          startDate: "2021-01",
+          endDate: "",
+          isCurrent: true,
+          description: "",
+          bullets: [
+            "Led development of microservices architecture serving 2M+ users",
+            "Mentored team of 5 junior developers",
+          ],
+        },
       ],
     },
     {
       id: "w2",
       company: "StartupXYZ",
-      position: "Full Stack Developer",
-      startDate: "2018-06",
-      endDate: "2020-12",
-      isCurrent: false,
-      description: "",
-      bullets: [
-        "Built React dashboard increasing user engagement by 40%",
-        "Implemented CI/CD pipeline reducing deployment time by 60%",
+      positions: [
+        {
+          id: "w2p1",
+          title: "Full Stack Developer",
+          startDate: "2018-06",
+          endDate: "2020-12",
+          isCurrent: false,
+          description: "",
+          bullets: [
+            "Built React dashboard increasing user engagement by 40%",
+            "Implemented CI/CD pipeline reducing deployment time by 60%",
+          ],
+        },
       ],
     },
   ],

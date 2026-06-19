@@ -3,7 +3,7 @@
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
 import type { SectionId } from "@/types/resume";
-import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, findCustomSection, isCustomSectionId, RenderClonedSection } from "../template-helpers";
+import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection } from "../template-helpers";
 
 /**
  * ATS006 - Left dates column + right content, letter-spaced section headings,
@@ -44,7 +44,7 @@ export function Ats006Template({ resume, config }: TemplateProps) {
       resume.summary ? (
         <div key="sum">
           <SectionTitle>Profile</SectionTitle>
-          <p className="text-[10px] leading-relaxed">{resume.summary}</p>
+          <p className="text-[10px] leading-relaxed whitespace-pre-line">{resume.summary}</p>
         </div>
       ) : null,
 
@@ -53,21 +53,26 @@ export function Ats006Template({ resume, config }: TemplateProps) {
         <div key="we">
           <SectionTitle>Employment History</SectionTitle>
           {resume.workExperience.map((exp, i) => (
-            <div key={exp.id || i} className="mb-3 flex gap-4">
-              {/* Left date column */}
-              <div className="w-[120px] shrink-0 text-[9px] pt-0.5" style={{ color: "#666" }}>
-                {exp.startDate} {"\u2014"} {exp.isCurrent ? "Present" : exp.endDate}
-              </div>
-              {/* Right content */}
-              <div className="flex-1">
-                <p className="font-bold text-xs">{exp.position}, {exp.company}</p>
-                <BulletList
-                  bullets={exp.bullets}
-                  description={exp.description}
-                  bulletStyle={config.bulletStyle}
-                  className="text-[10px]"
-                />
-              </div>
+            <div key={exp.id || i} className="mb-3">
+              <p className="font-bold text-xs mb-1">{exp.company}</p>
+              {exp.positions.map((pos, pi) => (
+                <div key={pos.id || pi} className="mb-1.5 flex gap-4">
+                  {/* Left date column */}
+                  <div className="w-[120px] shrink-0 text-[9px] pt-0.5" style={{ color: "#666" }}>
+                    {pos.startDate} {"\u2014"} {pos.isCurrent ? "Present" : pos.endDate}
+                  </div>
+                  {/* Right content */}
+                  <div className="flex-1">
+                    <p className="font-semibold text-xs">{pos.title}</p>
+                    <BulletList
+                      bullets={pos.bullets}
+                      description={pos.description}
+                      bulletStyle={config.bulletStyle}
+                      className="text-[10px]"
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
         </div>
@@ -101,14 +106,7 @@ export function Ats006Template({ resume, config }: TemplateProps) {
       hasContent(resume, "skills") ? (
         <div key="sk">
           <SectionTitle>Skills</SectionTitle>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-            {resume.skills.map((s, i) => (
-              <div key={s.id || i} className="flex justify-between text-[10px]">
-                <span>{s.name}</span>
-                {s.level && <span style={{ color: "#666" }}>{s.level}</span>}
-              </div>
-            ))}
-          </div>
+          <SkillsBlock skills={resume.skills} config={config} textSize="text-[10px]" />
         </div>
       ) : null,
 

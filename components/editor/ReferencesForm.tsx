@@ -4,16 +4,19 @@ import { useResumeStore } from "@/lib/store/resume-store";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Copy } from "lucide-react";
+import { Plus, Trash2, Copy, GripVertical } from "lucide-react";
 import type { Reference } from "@/types/resume";
+import { SortableList, SortableItem } from "./SortableList";
 
 function generateId() {
   return Math.random().toString(36).slice(2, 11);
 }
 
 export function ReferencesForm() {
-  const { resume, addItem, updateItem, removeItem, duplicateItem } = useResumeStore();
+  const { resume, addItem, updateItem, removeItem, duplicateItem, reorderItems } =
+    useResumeStore();
   const references: Reference[] = resume?.references || [];
+  const ids = references.map((r, i) => r.id || `reference-${i}`);
 
   function handleAdd() {
     addItem("references", {
@@ -37,12 +40,24 @@ export function ReferencesForm() {
 
   return (
     <div className="space-y-3">
+      <SortableList ids={ids} onReorder={(from, to) => reorderItems("references", from, to)}>
       {references.map((ref, index) => (
-        <div key={ref.id || index} className="border rounded-md p-3 space-y-3">
+        <SortableItem key={ids[index]} id={ids[index]}>
+          {({ setNodeRef, style, handleProps }) => (
+        <div ref={setNodeRef} style={style} className="border rounded-md p-3 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">
-              {ref.name || "New Reference"}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span
+                {...handleProps}
+                className="cursor-grab touch-none text-muted-foreground active:cursor-grabbing"
+                title="Drag to reorder"
+              >
+                <GripVertical className="h-4 w-4" />
+              </span>
+              <span className="text-sm font-medium">
+                {ref.name || "New Reference"}
+              </span>
+            </div>
             <div className="flex items-center gap-0.5">
               <Button
                 variant="ghost"
@@ -113,7 +128,10 @@ export function ReferencesForm() {
             </div>
           </div>
         </div>
+          )}
+        </SortableItem>
       ))}
+      </SortableList>
       <Button variant="outline" size="sm" className="w-full" onClick={handleAdd}>
         <Plus className="h-4 w-4 mr-1.5" />
         Add Reference

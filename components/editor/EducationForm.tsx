@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useResumeStore } from "@/lib/store/resume-store";
+import { SortableList } from "./SortableList";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -20,18 +23,34 @@ function generateId() {
 }
 
 function EducationEntry({
+  id,
   entry,
   index,
   onUpdate,
   onRemove,
   onDuplicate,
 }: {
+  id: string;
   entry: Education;
   index: number;
   onUpdate: (index: number, data: Education) => void;
   onRemove: (index: number) => void;
   onDuplicate: (index: number) => void;
 }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+  const sortableStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 20 : undefined,
+  };
   const [isCollapsed, setIsCollapsed] = useState(false);
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const entryRef = useRef(entry);
@@ -53,9 +72,16 @@ function EducationEntry({
     : "New Education";
 
   return (
-    <div className="border rounded-md">
+    <div ref={setNodeRef} style={sortableStyle} className="border rounded-md">
       <div className="flex items-center gap-2 px-3 py-2 bg-muted/30">
-        <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+        <span
+          {...attributes}
+          {...listeners}
+          className="cursor-grab touch-none text-muted-foreground active:cursor-grabbing"
+          title="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </span>
         <button
           className="flex items-center gap-1.5 flex-1 text-sm font-medium text-left"
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -159,9 +185,10 @@ function EducationEntry({
 }
 
 export function EducationForm() {
-  const { resume, addItem, updateItem, removeItem, duplicateItem } = useResumeStore();
+  const { resume, addItem, updateItem, removeItem, duplicateItem, reorderItems } = useResumeStore();
 
   const educations: Education[] = resume?.education || [];
+  const ids = educations.map((it, i) => it.id || `education-${i}`);
 
   function handleAdd() {
     addItem("education", {
@@ -189,9 +216,11 @@ export function EducationForm() {
 
   return (
     <div className="space-y-3">
+      <SortableList ids={ids} onReorder={(from, to) => reorderItems("education", from, to)}>
       {educations.map((edu, index) => (
         <EducationEntry
-          key={edu.id || index}
+          key={ids[index]}
+          id={ids[index]}
           entry={edu}
           index={index}
           onUpdate={handleUpdate}
@@ -199,6 +228,7 @@ export function EducationForm() {
           onDuplicate={handleDuplicate}
         />
       ))}
+      </SortableList>
       <Button variant="outline" size="sm" className="w-full" onClick={handleAdd}>
         <Plus className="h-4 w-4 mr-1.5" />
         Add Education

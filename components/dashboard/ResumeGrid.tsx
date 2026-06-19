@@ -3,7 +3,7 @@
 import { ResumeCard } from "./ResumeCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { FilePlus } from "lucide-react";
+import { FilePlus, Plus, SearchX } from "lucide-react";
 
 interface ResumeListItem {
   id: string;
@@ -35,10 +35,17 @@ export function ResumeGrid({
 }: ResumeGridProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="space-y-3">
-            <Skeleton className="h-[180px] rounded-lg" />
+      <div className="border-t border-[var(--c-border)]">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-4 border-b border-[var(--c-line)] py-6"
+          >
+            <div className="flex-1 space-y-2.5">
+              <Skeleton className="h-4 w-1/3 bg-[var(--c-surface-3)]" />
+              <Skeleton className="h-3 w-1/4 bg-[var(--c-surface-3)]" />
+            </div>
+            <Skeleton className="h-9 w-20 rounded-full bg-[var(--c-surface-3)]" />
           </div>
         ))}
       </div>
@@ -51,30 +58,46 @@ export function ResumeGrid({
 
   if (resumes.length === 0) {
     return (
-      <div className="border border-dashed rounded-lg p-12 text-center">
-        <FilePlus className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-1">No resumes yet</h3>
-        <p className="text-muted-foreground mb-4">
-          Create your first resume to get started!
+      <div className="rounded-2xl border border-dashed border-[var(--c-border)] bg-[var(--c-surface)]/70 px-6 py-16 text-center">
+        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--c-surface-3)] text-[var(--c-accent)]">
+          <FilePlus className="h-6 w-6" />
+        </div>
+        <h3
+          className="text-2xl text-[var(--c-ink)]"
+          style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}
+        >
+          No résumés yet
+        </h3>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--c-muted)]">
+          Start from a blank résumé or upload an existing CV to convert it into
+          an editable profile.
         </p>
-        <Button onClick={onCreateNew}>Create New Resume</Button>
+        <Button
+          onClick={onCreateNew}
+          className="mt-6 rounded-full bg-[var(--c-primary)] px-5 text-[var(--c-on-primary)] hover:bg-[var(--c-primary-hover)]"
+        >
+          <Plus className="h-4 w-4" />
+          Create new résumé
+        </Button>
       </div>
     );
   }
 
   if (filtered.length === 0) {
     return (
-      <div className="border border-dashed rounded-lg p-12 text-center text-muted-foreground">
-        <p>No resumes matching &quot;{searchQuery}&quot;</p>
+      <div className="rounded-2xl border border-dashed border-[var(--c-border)] bg-[var(--c-surface)]/70 px-6 py-14 text-center text-[var(--c-muted)]">
+        <SearchX className="mx-auto mb-4 h-9 w-9 text-[var(--c-muted-2)]" />
+        <p>No résumés matching &quot;{searchQuery}&quot;</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {filtered.map((resume) => (
+    <div className="border-t border-[var(--c-border)]">
+      {filtered.map((resume, i) => (
         <ResumeCard
           key={resume.id}
+          index={i}
           id={resume.id}
           title={resume.title}
           templateId={resume.templateId}

@@ -8,15 +8,22 @@ export interface PersonalInfo {
   photoUrl: string;
 }
 
-export interface WorkExperience {
+/** A single role held at a company. */
+export interface Position {
   id: string;
-  company: string;
-  position: string;
+  title: string;
   startDate: string;
   endDate: string;
   isCurrent: boolean;
   description: string;
   bullets: string[];
+}
+
+/** One workplace, which may contain multiple positions (e.g. after a promotion). */
+export interface WorkExperience {
+  id: string;
+  company: string;
+  positions: Position[];
 }
 
 export interface Education {
@@ -33,6 +40,7 @@ export interface Skill {
   id: string;
   name: string;
   level: string;
+  category?: string;
 }
 
 export interface Certification {
@@ -90,6 +98,7 @@ export interface TemplateConfig {
   primaryColor: string;
   accentColor: string;
   fontFamily: string;
+  headerFontFamily?: string;
   fontSize: string;
   lineSpacing: string;
   bulletStyle?: "disc" | "dash" | "arrow" | "square" | "none";
@@ -166,4 +175,59 @@ export function parseJsonField<T>(value: string | null): T | null {
 
 export function stringifyJsonField<T>(value: T): string {
   return JSON.stringify(value);
+}
+
+function genId(): string {
+  return Math.random().toString(36).slice(2, 11);
+}
+
+/**
+ * Accepts either the legacy flat shape ({company, position, startDate, ...})
+ * or the new nested shape ({company, positions[]}) and always returns the
+ * nested shape. Keeps existing resumes working without data loss.
+ */
+export function normalizeWorkExperience(raw: unknown): WorkExperience[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((e) => {
+    const entry = (e ?? {}) as Record<string, unknown>;
+    const company = typeof entry.company === "string" ? entry.company : "";
+
+    // New shape: already has a positions array.
+    if (Array.isArray(entry.positions)) {
+      return {
+        id: typeof entry.id === "string" ? entry.id : genId(),
+        company,
+        positions: (entry.positions as unknown[]).map((p) => {
+          const pos = (p ?? {}) as Record<string, unknown>;
+          return {
+            id: typeof pos.id === "string" ? pos.id : genId(),
+            title: typeof pos.title === "string" ? pos.title : "",
+            startDate: typeof pos.startDate === "string" ? pos.startDate : "",
+            endDate: typeof pos.endDate === "string" ? pos.endDate : "",
+            isCurrent: pos.isCurrent === true,
+            description: typeof pos.description === "string" ? pos.description : "",
+            bullets: Array.isArray(pos.bullets) ? (pos.bullets as string[]) : [],
+          };
+        }),
+      };
+    }
+
+    // Legacy flat shape: wrap into a single position.
+    const baseId = typeof entry.id === "string" ? entry.id : genId();
+    return {
+      id: baseId,
+      company,
+      positions: [
+        {
+          id: `${baseId}-p0`,
+          title: typeof entry.position === "string" ? entry.position : "",
+          startDate: typeof entry.startDate === "string" ? entry.startDate : "",
+          endDate: typeof entry.endDate === "string" ? entry.endDate : "",
+          isCurrent: entry.isCurrent === true,
+          description: typeof entry.description === "string" ? entry.description : "",
+          bullets: Array.isArray(entry.bullets) ? (entry.bullets as string[]) : [],
+        },
+      ],
+    };
+  });
 }

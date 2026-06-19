@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
   try {
-    const session = await getSession();
-
+    const user = await getCurrentUser();
     return NextResponse.json({
-      isLoggedIn: session.isLoggedIn === true,
+      isLoggedIn: !!user,
+      user: user ?? null,
     });
   } catch {
-    return NextResponse.json({ isLoggedIn: false });
+    return NextResponse.json({ isLoggedIn: false, user: null });
   }
 }

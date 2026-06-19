@@ -3,7 +3,7 @@
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
 import type { SectionId } from "@/types/resume";
-import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, getBulletMarker, findCustomSection, isCustomSectionId, RenderClonedSection } from "../template-helpers";
+import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection } from "../template-helpers";
 
 /**
  * ATS004 - Large uppercase name, double-line colored dividers under section headings,
@@ -48,14 +48,18 @@ export function Ats004Template({ resume, config }: TemplateProps) {
           <SectionTitle>Work Experience</SectionTitle>
           {resume.workExperience.map((exp, i) => (
             <div key={exp.id || i} className="mb-3">
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs">{exp.position}</span>
-                <span className="text-[10px]" style={{ color: "#555" }}>
-                  {exp.startDate} {"\u2013"} {exp.isCurrent ? "Present" : exp.endDate}
-                </span>
-              </div>
-              <p className="text-xs italic" style={{ color: "#555" }}>{exp.company}</p>
-              <BulletList bullets={exp.bullets} description={exp.description} bulletStyle={config.bulletStyle} className="text-xs" />
+              <p className="text-xs font-bold uppercase">{exp.company}</p>
+              {exp.positions.map((pos, pi) => (
+                <div key={pos.id || pi} className="mt-0.5">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-xs italic" style={{ color: "#555" }}>{pos.title}</span>
+                    <span className="text-[10px]" style={{ color: "#555" }}>
+                      {pos.startDate} {"\u2013"} {pos.isCurrent ? "Present" : pos.endDate}
+                    </span>
+                  </div>
+                  <BulletList bullets={pos.bullets} description={pos.description} bulletStyle={config.bulletStyle} className="text-xs" />
+                </div>
+              ))}
             </div>
           ))}
         </div>
@@ -82,22 +86,13 @@ export function Ats004Template({ resume, config }: TemplateProps) {
         </div>
       ) : null,
 
-    skills: () => {
-      const marker = getBulletMarker(config.bulletStyle);
-      return hasContent(resume, "skills") ? (
+    skills: () =>
+      hasContent(resume, "skills") ? (
         <div key="sk">
           <SectionTitle>Skills</SectionTitle>
-          <ul className="mt-0.5 space-y-0.5">
-            {resume.skills.map((s, i) => (
-              <li key={s.id || i} className="text-xs flex items-start gap-1.5" style={{ listStyleType: "none" }}>
-                {marker && <span className="shrink-0 leading-[inherit]">{marker}</span>}
-                <span>{s.name}{s.level ? ` (${s.level})` : ""}</span>
-              </li>
-            ))}
-          </ul>
+          <SkillsBlock skills={resume.skills} config={config} textSize="text-xs" />
         </div>
-      ) : null;
-    },
+      ) : null,
 
     certifications: () =>
       hasContent(resume, "certifications") ? (

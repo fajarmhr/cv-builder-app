@@ -2,14 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { ShareDialog } from "@/components/editor/ShareDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,14 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Pencil,
-  Copy,
-  Trash2,
-  MoreVertical,
-  FileText,
-  User,
-} from "lucide-react";
+import { getAllTemplates } from "@/components/templates/TemplateRegistry";
+import { Pencil, Copy, Trash2, MoreHorizontal } from "lucide-react";
 
 interface ResumeCardProps {
   id: string;
@@ -40,25 +28,23 @@ interface ResumeCardProps {
   templateId: string;
   personName: string | null;
   updatedAt: string;
+  index?: number;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onTitleChange: (id: string, newTitle: string) => void;
 }
 
-function timeAgo(dateStr: string): string {
-  const now = new Date();
-  const date = new Date(dateStr);
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+const TEMPLATE_NAMES: Record<string, string> = Object.fromEntries(
+  getAllTemplates().map((t) => [t.id, t.name])
+);
 
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  const months = Math.floor(days / 30);
-  return `${months}mo ago`;
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export function ResumeCard({
@@ -67,6 +53,7 @@ export function ResumeCard({
   templateId,
   personName,
   updatedAt,
+  index = 0,
   onDuplicate,
   onDelete,
   onTitleChange,
@@ -102,96 +89,97 @@ export function ResumeCard({
     }
   }
 
+  const templateName = TEMPLATE_NAMES[templateId] || templateId.toUpperCase();
+
   return (
     <>
-      <Card className="group hover:shadow-md transition-shadow cursor-pointer">
-        <CardHeader className="pb-2">
-          <div className="flex items-start justify-between">
-            <Badge variant="secondary" className="text-xs">
-              {templateId}
-            </Badge>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => router.push(`/editor/${id}`)}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onDuplicate(id)}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Duplicate
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => setShowDeleteDialog(true)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+      <div
+        className="reveal-up group flex items-center gap-4 border-b border-[var(--c-line)] py-6 transition-[padding] duration-300 hover:pl-3"
+        style={{ "--i": index } as React.CSSProperties}
+      >
+        <div className="min-w-0 flex-1">
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              className="w-full max-w-md border-b border-[var(--c-ring)] bg-transparent text-xl font-medium text-[var(--c-ink)] outline-none"
+              style={{ fontFamily: "var(--font-grotesk)" }}
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onBlur={handleTitleSave}
+              onKeyDown={handleKeyDown}
+            />
+          ) : (
+            <h3
+              className="cursor-pointer truncate text-xl font-medium tracking-[-0.01em] text-[var(--c-ink)]"
+              style={{ fontFamily: "var(--font-grotesk)" }}
+              onClick={() => router.push(`/editor/${id}`)}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                setIsEditing(true);
+              }}
+              title="Click to open · double-click to rename"
+            >
+              {title}
+            </h3>
+          )}
+          <div className="mt-1.5 font-mono text-xs text-[var(--c-muted-2)]">
+            {templateName} · {personName ? `${personName} · ` : ""}updated{" "}
+            {formatDate(updatedAt)}
           </div>
-        </CardHeader>
-        <CardContent
-          className="pb-2"
-          onClick={() => router.push(`/editor/${id}`)}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-            {isEditing ? (
-              <input
-                ref={inputRef}
-                className="font-semibold text-lg bg-transparent border-b border-primary outline-none w-full"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                onBlur={handleTitleSave}
-                onKeyDown={handleKeyDown}
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <h3
-                className="font-semibold text-lg truncate"
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  setIsEditing(true);
-                }}
-                title="Double-click to rename"
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <ShareDialog resumeId={id} />
+          <Button
+            size="sm"
+            className="rounded-full bg-[var(--c-primary)] px-5 font-semibold text-[var(--c-on-primary)] hover:bg-[var(--c-primary-hover)]"
+            onClick={() => router.push(`/editor/${id}`)}
+          >
+            Edit
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full text-[var(--c-muted-2)] hover:bg-[var(--c-surface-3)] hover:text-[var(--c-ink)]"
               >
-                {title}
-              </h3>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <User className="h-3.5 w-3.5" />
-            <span className={personName ? "" : "italic"}>
-              {personName || "No name yet"}
-            </span>
-          </div>
-        </CardContent>
-        <CardFooter className="pt-2 text-xs text-muted-foreground">
-          Edited {timeAgo(updatedAt)}
-        </CardFooter>
-      </Card>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => router.push(`/editor/${id}`)}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDuplicate(id)}>
+                <Copy className="h-4 w-4 mr-2" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Resume</DialogTitle>
+            <DialogTitle>Delete résumé</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete &quot;{title}&quot;? This action
               cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-            >
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
               Cancel
             </Button>
             <Button

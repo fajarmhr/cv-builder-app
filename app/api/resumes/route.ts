@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError, parseResumeFromDb } from "@/lib/utils/api-helpers";
+import { getUserId } from "@/lib/auth";
 import { DEFAULT_SECTION_ORDER, stringifyJsonField } from "@/types/resume";
 
-// GET /api/resumes — list all resumes
+// GET /api/resumes — list current user's resumes
 export async function GET() {
   try {
+    const userId = await getUserId();
+    if (!userId) return apiError("Unauthorized", 401);
+
     const resumes = await prisma.resume.findMany({
+      where: { userId },
       orderBy: { updatedAt: "desc" },
     });
 
@@ -37,14 +42,18 @@ export async function GET() {
   }
 }
 
-// POST /api/resumes — create new resume
+// POST /api/resumes — create new resume for current user
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getUserId();
+    if (!userId) return apiError("Unauthorized", 401);
+
     const body = await req.json().catch(() => ({}));
     const title = body.title || "Untitled Resume";
 
     const resume = await prisma.resume.create({
       data: {
+        userId,
         title,
         templateId: "ats-001",
         sectionOrder: stringifyJsonField(DEFAULT_SECTION_ORDER),
