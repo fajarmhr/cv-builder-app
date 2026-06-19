@@ -47,6 +47,22 @@ function formatDate(dateStr: string): string {
   });
 }
 
+/* Tiny decorative résumé glyph shown at the start of each row. */
+function MiniPaper() {
+  return (
+    <div className="hidden h-16 w-12 shrink-0 overflow-hidden rounded-md border border-[var(--c-border)] bg-[var(--c-surface)] shadow-sm transition-transform duration-300 group-hover:-translate-y-0.5 sm:block">
+      <div className="space-y-[3px] p-2">
+        <div className="h-[3px] w-3/5 rounded-full bg-[var(--c-ink)]/35" />
+        <div className="mt-1.5 h-[2px] w-full rounded-full bg-[var(--c-ink)]/12" />
+        <div className="h-[2px] w-4/5 rounded-full bg-[var(--c-ink)]/12" />
+        <div className="mt-1.5 h-[2px] w-2/5 rounded-full bg-[var(--c-accent)]/60" />
+        <div className="h-[2px] w-full rounded-full bg-[var(--c-ink)]/12" />
+        <div className="h-[2px] w-3/4 rounded-full bg-[var(--c-ink)]/12" />
+      </div>
+    </div>
+  );
+}
+
 export function ResumeCard({
   id,
   title,
@@ -94,9 +110,11 @@ export function ResumeCard({
   return (
     <>
       <div
-        className="reveal-up group flex items-center gap-4 border-b border-[var(--c-line)] py-6 transition-[padding] duration-300 hover:pl-3"
+        className="reveal-up group flex items-center gap-4 rounded-xl border-b border-[var(--c-line)] px-2 py-5 transition-colors duration-300 hover:bg-[var(--c-surface)]"
         style={{ "--i": index } as React.CSSProperties}
       >
+        <MiniPaper />
+
         <div className="min-w-0 flex-1">
           {isEditing ? (
             <input

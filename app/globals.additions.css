@@ -1,0 +1,31 @@
+/* ───────────────────────────────────────────────────────────────
+   DASHBOARD REDESIGN — additions
+   Append the block below to the END of app/globals.css.
+   (It only adds two keyframes/utilities; nothing here overrides
+   your existing tokens.)
+   ─────────────────────────────────────────────────────────────── */
+
+/* Horizontal trust marquee on the guest dashboard */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.marquee-track {
+  width: max-content;
+  animation: marquee 26s linear infinite;
+}
+
+/* Tilted spotlight résumé card in the guest hero */
+.tilt-card {
+  transform: rotate(-1.2deg);
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tilt-card:hover {
+  transform: rotate(0deg) translateY(-4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { animation: none; }
+  .tilt-card { transform: none; transition: none; }
+}
