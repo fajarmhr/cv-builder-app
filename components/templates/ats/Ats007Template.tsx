@@ -46,7 +46,7 @@ export function Ats007Template({ resume, config }: TemplateProps) {
 
     summary: () =>
       resume.summary ? (
-        <p key="sum" className="text-[10px] leading-relaxed mb-1 whitespace-pre-line" style={{ color: "#333" }}>
+        <p key="sum" className="text-[10px] leading-[var(--line-spacing)] mb-1 whitespace-pre-line" style={{ color: "#333" }}>
           {resume.summary}
         </p>
       ) : null,

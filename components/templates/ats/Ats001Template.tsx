@@ -42,7 +42,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
     summary: () =>
       resume.summary ? (
         <div key="sum">
-          <p className="text-xs leading-relaxed text-justify whitespace-pre-line">{resume.summary}</p>
+          <p className="text-xs leading-[var(--line-spacing)] text-justify whitespace-pre-line">{resume.summary}</p>
         </div>
       ) : null,
 

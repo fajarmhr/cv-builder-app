@@ -46,7 +46,11 @@ export function SectionFrame({
   if (o.fontSize) {
     (style as Record<string, unknown>)["--cv-scale"] = FONT_SCALE_MAP[o.fontSize] ?? 1;
   }
-  if (o.lineSpacing) style.lineHeight = LINE_SPACING_MAP[o.lineSpacing];
+  if (o.lineSpacing) {
+    const ls = LINE_SPACING_MAP[o.lineSpacing];
+    style.lineHeight = ls;
+    (style as Record<string, unknown>)["--line-spacing"] = ls;
+  }
   return <div style={style}>{children}</div>;
 }
 

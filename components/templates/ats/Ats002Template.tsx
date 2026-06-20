@@ -49,7 +49,7 @@ export function Ats002Template({ resume, config }: TemplateProps) {
 
     summary: () =>
       resume.summary ? (
-        <p key="sum" className="text-xs leading-relaxed mt-2 whitespace-pre-line">
+        <p key="sum" className="text-xs leading-[var(--line-spacing)] mt-2 whitespace-pre-line">
           {resume.summary}
         </p>
       ) : null,
