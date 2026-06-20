@@ -138,14 +138,16 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
       fontFamily: f.headerBold,
       color: ink,
       fontSize: variant === "modern" ? 20 : 18,
+      lineHeight: 1.2,
       textTransform: variant === "modern" ? "none" : "uppercase",
       letterSpacing: variant === "modern" ? 0 : 0.9,
       textAlign: variant === "classic" ? "center" : "left",
+      marginBottom: 4,
     },
     contact: {
       fontSize: 7.5,
       color: CONTACT,
-      marginTop: 1.5,
+      lineHeight: 1.35,
       textAlign: variant === "classic" ? "center" : "left",
     },
     // sections
