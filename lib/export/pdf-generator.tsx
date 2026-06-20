@@ -157,6 +157,9 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
       lineHeight: 1.35,
       textAlign: variant === "classic" ? "center" : "left",
     },
+    // Classic: cap the contact width so a long line wraps tidily onto two
+    // centred rows (matches the live preview) instead of one full-width line.
+    contactClassic: { maxWidth: 300, alignSelf: "center" },
     // sections
     sectionTitle: {
       fontFamily: f.headerBold,
@@ -414,7 +417,7 @@ function Header({
         {info.photoUrl ? <Image style={styles.photoAbs} src={info.photoUrl} /> : null}
         <Text style={styles.name}>{info.name}</Text>
       </View>
-      <Text style={styles.contact}>{contactParts.join(" · ")}</Text>
+      <Text style={[styles.contact, styles.contactClassic]}>{contactParts.join(" · ")}</Text>
     </View>
   );
 }

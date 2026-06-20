@@ -149,7 +149,8 @@ export default function EditorPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       toast.success("PDF exported successfully!");
-    } catch {
+    } catch (error) {
+      console.error("PDF export failed:", error);
       toast.error("Failed to export PDF");
     } finally {
       setIsExportingPdf(false);
