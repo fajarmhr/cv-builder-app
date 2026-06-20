@@ -102,6 +102,13 @@ export interface TemplateConfig {
   fontSize: string;
   lineSpacing: string;
   bulletStyle?: "disc" | "dash" | "arrow" | "square" | "none";
+  /** Per-section font-size / line-spacing overrides; each falls back to the global value above. */
+  sectionStyles?: Partial<Record<SectionId, SectionStyleOverride>>;
+}
+
+export interface SectionStyleOverride {
+  fontSize?: string;
+  lineSpacing?: string;
 }
 
 export type SectionId =

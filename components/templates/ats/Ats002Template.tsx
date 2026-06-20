@@ -2,7 +2,7 @@
 
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
-import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection } from "../template-helpers";
+import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection, SectionFrame } from "../template-helpers";
 
 /**
  * ATS002 — Modern. Left-aligned name + role, accent-coloured section rule,
@@ -210,7 +210,11 @@ export function Ats002Template({ resume, config }: TemplateProps) {
             </div>
           );
         }
-        return sectionRenderers[s]?.();
+        return (
+          <SectionFrame key={s} sectionId={s} config={config}>
+            {sectionRenderers[s]?.()}
+          </SectionFrame>
+        );
       })}
     </TemplateWrapper>
   );

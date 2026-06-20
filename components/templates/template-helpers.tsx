@@ -2,6 +2,7 @@
 import type {
   ResumeData,
   TemplateConfig,
+  SectionId,
   CustomSection,
   Education,
   Skill,
@@ -12,6 +13,42 @@ import type {
   Reference,
 } from "@/types/resume";
 import { isCustomSectionId, getCustomSectionEntryId, normalizeWorkExperience } from "@/types/resume";
+import type { ReactNode, CSSProperties } from "react";
+
+// Per-section font-size scale (shared with the global font-size control).
+export const FONT_SCALE_MAP: Record<string, number> = {
+  small: 0.85,
+  medium: 1,
+  large: 1.15,
+};
+
+export const LINE_SPACING_MAP: Record<string, string> = {
+  compact: "1.2",
+  normal: "1.4",
+  relaxed: "1.6",
+};
+
+// Wraps a rendered section so per-section font-size / line-spacing overrides
+// apply. Font-size cascades through the --cv-scale CSS var (see globals.css);
+// line-spacing through line-height. No wrapper is added when there's no override.
+export function SectionFrame({
+  sectionId,
+  config,
+  children,
+}: {
+  sectionId: string;
+  config: TemplateConfig;
+  children: ReactNode;
+}) {
+  const o = config.sectionStyles?.[sectionId as SectionId];
+  if (!o || (!o.fontSize && !o.lineSpacing)) return <>{children}</>;
+  const style: CSSProperties = {};
+  if (o.fontSize) {
+    (style as Record<string, unknown>)["--cv-scale"] = FONT_SCALE_MAP[o.fontSize] ?? 1;
+  }
+  if (o.lineSpacing) style.lineHeight = LINE_SPACING_MAP[o.lineSpacing];
+  return <div style={style}>{children}</div>;
+}
 
 export function formatDate(d: string): string {
   if (!d) return "";

@@ -69,6 +69,25 @@ export function TemplateCustomizer() {
     fontSize: "medium",
     lineSpacing: "normal",
   };
+  function updateSectionStyle(
+    id: string,
+    key: "fontSize" | "lineSpacing",
+    value: string
+  ) {
+    const styles = {
+      ...((config.sectionStyles as Record<
+        string,
+        { fontSize?: string; lineSpacing?: string }
+      >) ?? {}),
+    };
+    const entry = { ...(styles[id] ?? {}) };
+    if (value) entry[key] = value;
+    else delete entry[key];
+    if (entry.fontSize || entry.lineSpacing) styles[id] = entry;
+    else delete styles[id];
+    updateTemplateConfig({ sectionStyles: styles as typeof config.sectionStyles });
+  }
+
   const bodyFontValue = getTemplateFont(config.fontFamily).value;
   const headerFontValue = getTemplateFont(
     config.headerFontFamily || config.fontFamily
@@ -203,6 +222,62 @@ export function TemplateCustomizer() {
                   {option.label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div>
+            <Label className={LABEL_CLASS}>Per-section overrides</Label>
+            <p className="mb-2 text-[11px] leading-snug text-[var(--c-muted)]">
+              Size &amp; spacing per section. &ldquo;Global&rdquo; uses the settings above.
+            </p>
+            <div className="space-y-1.5">
+              {(
+                [
+                  ["personalInfo", "Header"],
+                  ["summary", "Summary"],
+                  ["workExperience", "Experience"],
+                  ["education", "Education"],
+                  ["skills", "Skills"],
+                  ["certifications", "Certifications"],
+                  ["languages", "Languages"],
+                  ["projects", "Projects"],
+                  ["awards", "Awards"],
+                  ["references", "References"],
+                ] as [string, string][]
+              ).map(([id, label]) => {
+                const ov =
+                  (config.sectionStyles as Record<
+                    string,
+                    { fontSize?: string; lineSpacing?: string }
+                  >)?.[id] ?? {};
+                return (
+                  <div key={id} className="flex items-center gap-2">
+                    <span className="w-24 shrink-0 truncate text-xs text-[var(--c-ink-2)]">
+                      {label}
+                    </span>
+                    <select
+                      value={ov.fontSize ?? ""}
+                      onChange={(e) => updateSectionStyle(id, "fontSize", e.target.value)}
+                      className="flex-1 rounded-lg border border-[var(--c-border)] bg-[var(--c-surface)] px-2 py-1.5 text-xs text-[var(--c-ink)]"
+                    >
+                      <option value="">Size: Global</option>
+                      <option value="small">Small</option>
+                      <option value="medium">Medium</option>
+                      <option value="large">Large</option>
+                    </select>
+                    <select
+                      value={ov.lineSpacing ?? ""}
+                      onChange={(e) => updateSectionStyle(id, "lineSpacing", e.target.value)}
+                      className="flex-1 rounded-lg border border-[var(--c-border)] bg-[var(--c-surface)] px-2 py-1.5 text-xs text-[var(--c-ink)]"
+                    >
+                      <option value="">Spacing: Global</option>
+                      <option value="compact">Compact</option>
+                      <option value="normal">Normal</option>
+                      <option value="relaxed">Relaxed</option>
+                    </select>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

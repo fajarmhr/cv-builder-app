@@ -2,7 +2,7 @@
 
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
-import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection } from "../template-helpers";
+import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection, SectionFrame } from "../template-helpers";
 
 /**
  * ATS007 — Minimal. Name left / contact right with a strong rule beneath,
@@ -212,7 +212,11 @@ export function Ats007Template({ resume, config }: TemplateProps) {
             </div>
           );
         }
-        return sectionRenderers[s]?.();
+        return (
+          <SectionFrame key={s} sectionId={s} config={config}>
+            {sectionRenderers[s]?.()}
+          </SectionFrame>
+        );
       })}
     </TemplateWrapper>
   );
