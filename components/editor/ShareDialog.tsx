@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Share2, Loader2, Copy, Check, Globe } from "lucide-react";
+import { Share2, Loader2, Copy, Check, Globe, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -82,105 +82,118 @@ export function ShareDialog({ resumeId }: { resumeId: string }) {
           Share
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <p className="eyebrow">Share this résumé</p>
-          <DialogTitle style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}>
-            Public link &amp; token
-          </DialogTitle>
-        </DialogHeader>
-
-        {loading && !state ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-[var(--c-accent)]" />
+      <DialogContent
+        showCloseButton={false}
+        className="flex max-h-[85vh] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
+      >
+        {/* ── Header (fixed) ── */}
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--c-border)] px-6 py-5">
+          <div className="space-y-1">
+            <p className="eyebrow">Share this résumé</p>
+            <DialogTitle style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}>
+              Public link &amp; token
+            </DialogTitle>
           </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm leading-relaxed text-[var(--c-muted)]">
-              Anyone with the link or token can view this résumé read-only — no
-              login needed. The link stays the same as you keep editing, so
-              third-party apps always get the latest version.
-            </p>
+          <DialogClose className="-mr-1.5 -mt-1 shrink-0 rounded-full p-1.5 text-[var(--c-muted)] transition-colors hover:bg-[var(--c-surface-3)] hover:text-[var(--c-ink)] focus:outline-none">
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogClose>
+        </div>
 
-            {!state?.isPublished ? (
-              <Button
-                onClick={() => toggle(true)}
-                disabled={loading}
-                className="w-full rounded-full bg-[var(--c-primary)] text-[var(--c-on-primary)] hover:bg-[var(--c-primary-hover)]"
-              >
-                <Globe className="h-4 w-4 mr-1.5" />
-                Enable sharing
-              </Button>
-            ) : (
-              <>
-                {/* ── Share token (one-tap copy for third-party apps) ── */}
-                <div className="space-y-1.5">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--c-muted)]">
-                    Share token
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 truncate rounded-lg border border-[var(--c-border)] bg-[var(--c-surface-3)] px-3 py-2.5 font-mono text-xs text-[var(--c-ink)]">
-                      {token}
-                    </code>
-                    <Button
-                      onClick={() => copy(token!, "token", "Token")}
-                      className="shrink-0 rounded-lg bg-[var(--c-accent)] px-4 font-semibold text-white hover:opacity-90"
-                    >
-                      {copied === "token" ? (
-                        <>
-                          <Check className="h-4 w-4 mr-1.5" /> Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-4 w-4 mr-1.5" /> Copy token
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
+        {/* ── Body (scrolls) ── */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {loading && !state ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-[var(--c-accent)]" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm leading-relaxed text-[var(--c-muted)]">
+                Anyone with the link or token can view this résumé read-only — no
+                login needed. The link stays the same as you keep editing, so
+                third-party apps always get the latest version.
+              </p>
 
-                <LinkRow
-                  label="Public page"
-                  value={publicUrl}
-                  copied={copied === "public"}
-                  onCopy={() => copy(publicUrl, "public", "Link")}
-                />
-                <LinkRow
-                  label="Résumé data (JSON)"
-                  value={jsonUrl}
-                  copied={copied === "json"}
-                  onCopy={() => copy(jsonUrl, "json", "Link")}
-                />
-                <LinkRow
-                  label="PDF preview"
-                  value={pdfPreviewUrl}
-                  copied={copied === "pdf-preview"}
-                  onCopy={() => copy(pdfPreviewUrl, "pdf-preview", "Link")}
-                />
-                <LinkRow
-                  label="PDF download"
-                  value={pdfDownloadUrl}
-                  copied={copied === "pdf-download"}
-                  onCopy={() => copy(pdfDownloadUrl, "pdf-download", "Link")}
-                />
-                <LinkRow
-                  label="DOCX download"
-                  value={docxDownloadUrl}
-                  copied={copied === "docx-download"}
-                  onCopy={() => copy(docxDownloadUrl, "docx-download", "Link")}
-                />
+              {!state?.isPublished ? (
                 <Button
-                  variant="outline"
-                  onClick={() => toggle(false)}
+                  onClick={() => toggle(true)}
                   disabled={loading}
-                  className="w-full rounded-full border-[var(--c-border)] text-[var(--c-danger)] hover:bg-[var(--c-surface-3)]"
+                  className="w-full rounded-full bg-[var(--c-primary)] text-[var(--c-on-primary)] hover:bg-[var(--c-primary-hover)]"
                 >
-                  Disable sharing
+                  <Globe className="h-4 w-4 mr-1.5" />
+                  Enable sharing
                 </Button>
-              </>
-            )}
-          </div>
-        )}
+              ) : (
+                <>
+                  {/* ── Share token (one-tap copy for third-party apps) ── */}
+                  <div className="space-y-1.5">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--c-muted)]">
+                      Share token
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 truncate rounded-lg border border-[var(--c-border)] bg-[var(--c-surface-3)] px-3 py-2.5 font-mono text-xs text-[var(--c-ink)]">
+                        {token}
+                      </code>
+                      <Button
+                        onClick={() => copy(token!, "token", "Token")}
+                        className="shrink-0 rounded-lg bg-[var(--c-accent)] px-4 font-semibold text-white hover:opacity-90"
+                      >
+                        {copied === "token" ? (
+                          <>
+                            <Check className="h-4 w-4 mr-1.5" /> Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-4 w-4 mr-1.5" /> Copy
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <LinkRow
+                    label="Public page"
+                    value={publicUrl}
+                    copied={copied === "public"}
+                    onCopy={() => copy(publicUrl, "public", "Link")}
+                  />
+                  <LinkRow
+                    label="Résumé data (JSON)"
+                    value={jsonUrl}
+                    copied={copied === "json"}
+                    onCopy={() => copy(jsonUrl, "json", "Link")}
+                  />
+                  <LinkRow
+                    label="PDF preview"
+                    value={pdfPreviewUrl}
+                    copied={copied === "pdf-preview"}
+                    onCopy={() => copy(pdfPreviewUrl, "pdf-preview", "Link")}
+                  />
+                  <LinkRow
+                    label="PDF download"
+                    value={pdfDownloadUrl}
+                    copied={copied === "pdf-download"}
+                    onCopy={() => copy(pdfDownloadUrl, "pdf-download", "Link")}
+                  />
+                  <LinkRow
+                    label="DOCX download"
+                    value={docxDownloadUrl}
+                    copied={copied === "docx-download"}
+                    onCopy={() => copy(docxDownloadUrl, "docx-download", "Link")}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => toggle(false)}
+                    disabled={loading}
+                    className="w-full rounded-full border-[var(--c-border)] text-[var(--c-danger)] hover:bg-[var(--c-surface-3)]"
+                  >
+                    Disable sharing
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
