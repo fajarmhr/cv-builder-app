@@ -5,6 +5,7 @@ import {
   Text,
   Image,
   StyleSheet,
+  Font,
   renderToBuffer,
 } from "@react-pdf/renderer";
 import type { ResumeData, TemplateConfig, CustomSection } from "@/types/resume";
@@ -40,15 +41,51 @@ function variantFor(templateId?: string): Variant {
 const SUB = "#555555";
 const CONTACT = "#444444";
 
+// Register the résumé's body + header fonts (regular/bold) from the fontsource
+// CDN so the PDF matches the on-screen template. Falls back to the built-in
+// Helvetica/Times if a family can't be registered.
+const FONTSOURCE = "https://cdn.jsdelivr.net/fontsource/fonts";
+const registeredFonts = new Set<string>();
+
+function registerTemplateFont(opt: ReturnType<typeof getTemplateFont>): boolean {
+  const id = opt.value;
+  if (!id) return false;
+  if (registeredFonts.has(id)) return true;
+  try {
+    Font.register({
+      family: opt.docxFamily,
+      src: `${FONTSOURCE}/${id}@latest/latin-400-normal.ttf`,
+    });
+    Font.register({
+      family: `${opt.docxFamily} Bold`,
+      src: `${FONTSOURCE}/${id}@latest/latin-700-normal.ttf`,
+    });
+    registeredFonts.add(id);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function fonts(config: TemplateConfig) {
-  const bodySerif = getTemplateFont(config.fontFamily).category === "serif";
-  const headerSerif =
-    getTemplateFont(config.headerFontFamily || config.fontFamily).category ===
-    "serif";
+  const bodyOpt = getTemplateFont(config.fontFamily);
+  const headerOpt = getTemplateFont(config.headerFontFamily || config.fontFamily);
+  const bodyOk = registerTemplateFont(bodyOpt);
+  const headerOk = registerTemplateFont(headerOpt);
+  const bodySerif = bodyOpt.category === "serif";
+  const headerSerif = headerOpt.category === "serif";
   return {
-    body: bodySerif ? "Times-Roman" : "Helvetica",
-    bodyBold: bodySerif ? "Times-Bold" : "Helvetica-Bold",
-    headerBold: headerSerif ? "Times-Bold" : "Helvetica-Bold",
+    body: bodyOk ? bodyOpt.docxFamily : bodySerif ? "Times-Roman" : "Helvetica",
+    bodyBold: bodyOk
+      ? `${bodyOpt.docxFamily} Bold`
+      : bodySerif
+      ? "Times-Bold"
+      : "Helvetica-Bold",
+    headerBold: headerOk
+      ? `${headerOpt.docxFamily} Bold`
+      : headerSerif
+      ? "Times-Bold"
+      : "Helvetica-Bold",
   };
 }
 
