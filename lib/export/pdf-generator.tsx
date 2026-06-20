@@ -135,13 +135,16 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
     contactRightLine: { fontSize: 7.5, color: SUB, lineHeight: 1.5 },
     photo: { width: 42, height: 42, borderRadius: 21, objectFit: "cover", marginRight: 9 },
     // Classic: photo pinned left, name + contact centred across full width.
-    headerCenter: { marginBottom: 9, position: "relative", minHeight: 42, justifyContent: "center" },
+    headerCenter: { marginBottom: 9 },
+    headerNameRow: { position: "relative", minHeight: 42, justifyContent: "center" },
     photoAbs: { position: "absolute", left: 0, top: 0, width: 42, height: 42, borderRadius: 21, objectFit: "cover" },
     headerCol: { flexGrow: 1 },
+    minimalLeft: { flexDirection: "row", alignItems: "center", flexGrow: 1, flexShrink: 1, flexBasis: 0, marginRight: 12 },
+    nameFlex: { flexShrink: 1 },
     name: {
       fontFamily: f.headerBold,
       color: ink,
-      fontSize: variant === "modern" ? 20 : 18,
+      fontSize: variant === "modern" ? 20 : variant === "minimal" ? 15 : 18,
       lineHeight: 1.2,
       textTransform: variant === "modern" ? "none" : "uppercase",
       letterSpacing: variant === "modern" ? 0 : 0.9,
@@ -376,11 +379,11 @@ function Header({
     const rightLines = [info.address, info.phone, info.email, info.linkedin].filter(Boolean);
     return (
       <View style={styles.headerSplit}>
-        <View style={styles.headerRow}>
+        <View style={styles.minimalLeft}>
           {info.photoUrl ? <Image style={styles.photo} src={info.photoUrl} /> : null}
-          <Text style={styles.name}>{info.name}</Text>
+          <Text style={[styles.name, styles.nameFlex]}>{info.name}</Text>
         </View>
-        <View style={styles.contactRight}>
+        <View style={[styles.contactRight, { flexShrink: 0 }]}>
           {rightLines.map((l, i) => (
             <Text key={i} style={styles.contactRightLine}>{l}</Text>
           ))}
@@ -404,11 +407,13 @@ function Header({
     );
   }
 
-  // Classic — name + contact centred across full width; photo pinned left.
+  // Classic — photo + name on a centred row, contact centred below (clear of photo).
   return (
     <View style={styles.headerCenter}>
-      {info.photoUrl ? <Image style={styles.photoAbs} src={info.photoUrl} /> : null}
-      <Text style={styles.name}>{info.name}</Text>
+      <View style={styles.headerNameRow}>
+        {info.photoUrl ? <Image style={styles.photoAbs} src={info.photoUrl} /> : null}
+        <Text style={styles.name}>{info.name}</Text>
+      </View>
       <Text style={styles.contact}>{contactParts.join(" · ")}</Text>
     </View>
   );
