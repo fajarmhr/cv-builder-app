@@ -134,6 +134,10 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
     contactRight: { alignItems: "flex-end" },
     contactRightLine: { fontSize: 7.5, color: SUB, lineHeight: 1.5 },
     photo: { width: 42, height: 42, borderRadius: 21, objectFit: "cover", marginRight: 9 },
+    // Classic: photo pinned left, name + contact centred across full width.
+    headerCenter: { marginBottom: 9, position: "relative", minHeight: 42, justifyContent: "center" },
+    photoAbs: { position: "absolute", left: 0, top: 0, width: 42, height: 42, borderRadius: 21, objectFit: "cover" },
+    headerCol: { flexGrow: 1 },
     name: {
       fontFamily: f.headerBold,
       color: ink,
@@ -385,16 +389,27 @@ function Header({
     );
   }
 
-  // Classic (centred) / Modern (left)
-  return (
-    <View style={styles.header}>
-      <View style={styles.headerRow}>
-        {info.photoUrl ? <Image style={styles.photo} src={info.photoUrl} /> : null}
-        <View>
-          <Text style={styles.name}>{info.name}</Text>
-          <Text style={styles.contact}>{contactParts.join(" · ")}</Text>
+  // Modern — name + contact left-aligned beside the photo.
+  if (variant === "modern") {
+    return (
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
+          {info.photoUrl ? <Image style={styles.photo} src={info.photoUrl} /> : null}
+          <View style={styles.headerCol}>
+            <Text style={styles.name}>{info.name}</Text>
+            <Text style={styles.contact}>{contactParts.join(" · ")}</Text>
+          </View>
         </View>
       </View>
+    );
+  }
+
+  // Classic — name + contact centred across full width; photo pinned left.
+  return (
+    <View style={styles.headerCenter}>
+      {info.photoUrl ? <Image style={styles.photoAbs} src={info.photoUrl} /> : null}
+      <Text style={styles.name}>{info.name}</Text>
+      <Text style={styles.contact}>{contactParts.join(" · ")}</Text>
     </View>
   );
 }
