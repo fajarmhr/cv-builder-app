@@ -66,7 +66,7 @@ export function ShareDialog({ resumeId }: { resumeId: string }) {
   const token = state?.shareToken;
   const publicUrl = token ? `${origin}/p/${token}` : "";
   const jsonUrl = token ? `${origin}/api/public/resume/${token}` : "";
-  const pdfPreviewUrl = token ? `${origin}/api/public/resume/${token}/pdf` : "";
+  const pdfPreviewUrl = token ? `${origin}/p/${token}/pdf` : "";
   const pdfDownloadUrl = token ? `${origin}/api/public/resume/${token}/pdf?download=1` : "";
   const docxDownloadUrl = token ? `${origin}/api/public/resume/${token}/docx` : "";
 
