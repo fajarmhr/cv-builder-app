@@ -425,6 +425,22 @@
   animation: soft-float 7s ease-in-out infinite;
 }
 
+/* ── Infinite ATS-systems marquee (guest hero) ───────────── */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.marquee-track {
+  width: max-content;
+  animation: marquee 24s linear infinite;
+  will-change: transform;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .reveal-up, .soft-float { animation: none; }
+  .reveal-up, .soft-float, .marquee-track { animation: none; }
 }

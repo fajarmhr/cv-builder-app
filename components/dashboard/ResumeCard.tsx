@@ -27,6 +27,7 @@ interface ResumeCardProps {
   title: string;
   templateId: string;
   personName: string | null;
+  isPublished: boolean;
   updatedAt: string;
   index?: number;
   onDuplicate: (id: string) => void;
@@ -68,6 +69,7 @@ export function ResumeCard({
   title,
   templateId,
   personName,
+  isPublished,
   updatedAt,
   index = 0,
   onDuplicate,
@@ -127,18 +129,29 @@ export function ResumeCard({
               onKeyDown={handleKeyDown}
             />
           ) : (
-            <h3
-              className="cursor-pointer truncate text-xl font-medium tracking-[-0.01em] text-[var(--c-ink)]"
-              style={{ fontFamily: "var(--font-grotesk)" }}
-              onClick={() => router.push(`/editor/${id}`)}
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                setIsEditing(true);
-              }}
-              title="Click to open · double-click to rename"
-            >
-              {title}
-            </h3>
+            <div className="flex items-center gap-2.5">
+              <h3
+                className="min-w-0 cursor-pointer truncate text-xl font-medium tracking-[-0.01em] text-[var(--c-ink)]"
+                style={{ fontFamily: "var(--font-grotesk)" }}
+                onClick={() => router.push(`/editor/${id}`)}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  setIsEditing(true);
+                }}
+                title="Click to open · double-click to rename"
+              >
+                {title}
+              </h3>
+              <span
+                className={
+                  isPublished
+                    ? "shrink-0 rounded-full border border-[var(--c-accent)]/40 bg-[var(--c-accent)]/[0.08] px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--c-accent)]"
+                    : "shrink-0 rounded-full border border-[var(--c-border)] px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--c-muted-2)]"
+                }
+              >
+                {isPublished ? "Published" : "Draft"}
+              </span>
+            </div>
           )}
           <div className="mt-1.5 font-mono text-xs text-[var(--c-muted-2)]">
             {templateName} · {personName ? `${personName} · ` : ""}updated{" "}

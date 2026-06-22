@@ -10,6 +10,7 @@ interface ResumeListItem {
   title: string;
   templateId: string;
   personName: string | null;
+  isPublished: boolean;
   updatedAt: string;
   createdAt: string;
 }
@@ -102,6 +103,7 @@ export function ResumeGrid({
           title={resume.title}
           templateId={resume.templateId}
           personName={resume.personName}
+          isPublished={resume.isPublished}
           updatedAt={resume.updatedAt}
           onDuplicate={onDuplicate}
           onDelete={onDelete}

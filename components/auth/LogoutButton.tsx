@@ -1,16 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function LogoutButton() {
-  const router = useRouter();
-
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/dashboard");
-    router.refresh();
+    // Full reload so the client dashboard re-fetches and drops to the guest view.
+    window.location.href = "/dashboard";
   }
 
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Share2, Loader2, Copy, Check, Globe, X } from "lucide-react";
+import { Share2, Loader2, Check, ArrowUpRight, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,10 +64,10 @@ export function ShareDialog({ resumeId }: { resumeId: string }) {
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const token = state?.shareToken;
+  const isPublished = !!state?.isPublished;
   const publicUrl = token ? `${origin}/p/${token}` : "";
   const jsonUrl = token ? `${origin}/api/public/resume/${token}` : "";
   const pdfPreviewUrl = token ? `${origin}/p/${token}/pdf` : "";
-  const pdfDownloadUrl = token ? `${origin}/api/public/resume/${token}/pdf?download=1` : "";
   const docxDownloadUrl = token ? `${origin}/api/public/resume/${token}/docx` : "";
 
   return (
@@ -84,7 +84,12 @@ export function ShareDialog({ resumeId }: { resumeId: string }) {
       </DialogTrigger>
       <DialogContent
         showCloseButton={false}
-        className="flex max-h-[85vh] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
+        className="flex max-h-[85vh] resize-x flex-col gap-0 overflow-auto p-0"
+        style={{
+          width: "28rem",
+          minWidth: "19rem",
+          maxWidth: "min(42rem, calc(100vw - 2rem))",
+        }}
       >
         {/* ── Header (fixed) ── */}
         <div className="flex items-start justify-between gap-4 border-b border-[var(--c-border)] px-6 py-5">
@@ -107,80 +112,105 @@ export function ShareDialog({ resumeId }: { resumeId: string }) {
               <Loader2 className="h-6 w-6 animate-spin text-[var(--c-accent)]" />
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <p className="text-sm leading-relaxed text-[var(--c-muted)]">
                 Anyone with the link or token can view this résumé read-only — no
-                login needed. The link stays the same as you keep editing, so
-                third-party apps always get the latest version.
+                login needed. Everything else stays private.
               </p>
 
-              {!state?.isPublished ? (
-                <Button
-                  onClick={() => toggle(true)}
+              {/* ── Published toggle ── */}
+              <div className="flex items-center justify-between rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] px-4 py-3.5">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-semibold text-[var(--c-ink)]">
+                    {isPublished ? "Published" : "Not published"}
+                  </p>
+                  <p className="text-xs text-[var(--c-muted)]">
+                    {isPublished
+                      ? "Live for third-party apps"
+                      : "Enable to get a public link"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isPublished}
+                  aria-label="Toggle publishing"
                   disabled={loading}
-                  className="w-full rounded-full bg-[var(--c-primary)] text-[var(--c-on-primary)] hover:bg-[var(--c-primary-hover)]"
+                  onClick={() => toggle(!isPublished)}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60 ${
+                    isPublished
+                      ? "bg-[var(--c-accent)]"
+                      : "border border-[var(--c-border)] bg-[var(--c-surface-3)]"
+                  }`}
                 >
-                  <Globe className="h-4 w-4 mr-1.5" />
-                  Enable sharing
-                </Button>
-              ) : (
+                  <span
+                    className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform"
+                    style={{
+                      transform: isPublished ? "translateX(20px)" : "translateX(0)",
+                    }}
+                  />
+                </button>
+              </div>
+
+              {isPublished && token && (
                 <>
-                  {/* ── Share token (one-tap copy for third-party apps) ── */}
-                  <div className="space-y-1.5">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--c-muted)]">
-                      Share token
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 truncate rounded-lg border border-[var(--c-border)] bg-[var(--c-surface-3)] px-3 py-2.5 font-mono text-xs text-[var(--c-ink)]">
-                        {token}
-                      </code>
-                      <Button
-                        onClick={() => copy(token!, "token", "Token")}
-                        className="shrink-0 rounded-lg bg-[var(--c-accent)] px-4 font-semibold text-white hover:opacity-90"
-                      >
-                        {copied === "token" ? (
-                          <>
-                            <Check className="h-4 w-4 mr-1.5" /> Copied
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-4 w-4 mr-1.5" /> Copy
-                          </>
-                        )}
-                      </Button>
+                  {/* ── Share token ── */}
+                  <Field label="Share token">
+                    <ScrollInput value={token} />
+                    <Button
+                      onClick={() => copy(token, "token", "Token")}
+                      className="shrink-0 rounded-lg bg-[var(--c-accent)] px-4 font-semibold text-white hover:opacity-90"
+                    >
+                      {copied === "token" ? (
+                        <>
+                          <Check className="h-4 w-4 mr-1.5" /> Copied
+                        </>
+                      ) : (
+                        "Copy token"
+                      )}
+                    </Button>
+                  </Field>
+
+                  {/* ── Public URL ── */}
+                  <Field label="Public URL">
+                    <ScrollInput value={publicUrl} />
+                    <Button
+                      variant="outline"
+                      onClick={() => copy(publicUrl, "public", "Link")}
+                      className="shrink-0 rounded-lg border-[var(--c-border)] px-4"
+                    >
+                      {copied === "public" ? (
+                        <>
+                          <Check className="h-4 w-4 mr-1.5 text-[var(--c-accent)]" /> Copied
+                        </>
+                      ) : (
+                        "Copy"
+                      )}
+                    </Button>
+                  </Field>
+
+                  {/* ── Endpoints for portfolio apps ── */}
+                  <div className="border-t border-[var(--c-border)] pt-4">
+                    <p className="eyebrow mb-1.5">Endpoints for portfolio apps</p>
+                    <div className="divide-y divide-[var(--c-line)]">
+                      <EndpointRow
+                        label="JSON data"
+                        copied={copied === "json"}
+                        onCopy={() => copy(jsonUrl, "json", "Link")}
+                      />
+                      <EndpointRow
+                        label="PDF preview"
+                        copied={copied === "pdf"}
+                        onCopy={() => copy(pdfPreviewUrl, "pdf", "Link")}
+                      />
+                      <EndpointRow
+                        label="DOCX download"
+                        copied={copied === "docx"}
+                        onCopy={() => copy(docxDownloadUrl, "docx", "Link")}
+                      />
                     </div>
                   </div>
 
-                  <LinkRow
-                    label="Public page"
-                    value={publicUrl}
-                    copied={copied === "public"}
-                    onCopy={() => copy(publicUrl, "public", "Link")}
-                  />
-                  <LinkRow
-                    label="Résumé data (JSON)"
-                    value={jsonUrl}
-                    copied={copied === "json"}
-                    onCopy={() => copy(jsonUrl, "json", "Link")}
-                  />
-                  <LinkRow
-                    label="PDF preview"
-                    value={pdfPreviewUrl}
-                    copied={copied === "pdf-preview"}
-                    onCopy={() => copy(pdfPreviewUrl, "pdf-preview", "Link")}
-                  />
-                  <LinkRow
-                    label="PDF download"
-                    value={pdfDownloadUrl}
-                    copied={copied === "pdf-download"}
-                    onCopy={() => copy(pdfDownloadUrl, "pdf-download", "Link")}
-                  />
-                  <LinkRow
-                    label="DOCX download"
-                    value={docxDownloadUrl}
-                    copied={copied === "docx-download"}
-                    onCopy={() => copy(docxDownloadUrl, "docx-download", "Link")}
-                  />
                   <Button
                     variant="outline"
                     onClick={() => toggle(false)}
@@ -199,39 +229,54 @@ export function ShareDialog({ resumeId }: { resumeId: string }) {
   );
 }
 
-function LinkRow({
+function Field({
   label,
-  value,
-  copied,
-  onCopy,
+  children,
 }: {
   label: string;
-  value: string;
-  copied: boolean;
-  onCopy: () => void;
+  children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
       <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--c-muted)]">
         {label}
       </p>
-      <div className="flex items-center gap-2">
-        <code className="flex-1 truncate rounded-lg border border-[var(--c-border)] bg-[var(--c-surface-3)] px-3 py-2 font-mono text-xs text-[var(--c-muted)]">
-          {value}
-        </code>
-        <Button
-          variant="outline"
-          size="icon-sm"
-          className="shrink-0 rounded-lg border-[var(--c-border)]"
-          onClick={onCopy}
-        >
-          {copied ? (
-            <Check className="h-4 w-4 text-[var(--c-accent)]" />
-          ) : (
-            <Copy className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
+      <div className="flex items-center gap-2">{children}</div>
+    </div>
+  );
+}
+
+/* Read-only field — click and drag (or scroll) horizontally to read the full value. */
+function ScrollInput({ value }: { value: string }) {
+  return (
+    <input
+      readOnly
+      value={value}
+      onFocus={(e) => e.currentTarget.select()}
+      className="min-w-0 flex-1 cursor-text rounded-lg border border-[var(--c-border)] bg-[var(--c-surface-3)] px-3 py-2.5 font-mono text-xs text-[var(--c-ink)] outline-none focus:border-[var(--c-ring)]"
+    />
+  );
+}
+
+function EndpointRow({
+  label,
+  copied,
+  onCopy,
+}: {
+  label: string;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between py-2.5">
+      <span className="text-sm text-[var(--c-ink-2)]">{label}</span>
+      <button
+        onClick={onCopy}
+        className="inline-flex items-center gap-1 font-mono text-xs text-[var(--c-accent)] transition-opacity hover:opacity-80"
+      >
+        {copied ? "copied" : "copy"}
+        <ArrowUpRight className="h-3.5 w-3.5" />
+      </button>
     </div>
   );
 }

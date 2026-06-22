@@ -30,6 +30,7 @@ export async function GET() {
         title: r.title,
         templateId: r.templateId,
         personName,
+        isPublished: r.isPublished,
         updatedAt: r.updatedAt.toISOString(),
         createdAt: r.createdAt.toISOString(),
       };

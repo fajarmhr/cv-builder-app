@@ -18,6 +18,7 @@ interface ResumeListItem {
   title: string;
   templateId: string;
   personName: string | null;
+  isPublished: boolean;
   updatedAt: string;
   createdAt: string;
 }
@@ -98,6 +99,7 @@ export default function DashboardPage() {
             title: data.resume.title,
             templateId: data.resume.templateId,
             personName: data.resume.personalInfo?.name || null,
+            isPublished: data.resume.isPublished ?? false,
             updatedAt: data.resume.updatedAt,
             createdAt: data.resume.createdAt,
           },
@@ -172,16 +174,16 @@ export default function DashboardPage() {
               </p>
 
               {/* benefit chips */}
-              <div className="mt-6 flex flex-wrap gap-2">
+              <div className="mt-6 flex flex-wrap gap-1.5">
                 {BENEFITS.map((b) => (
                   <span
                     key={b}
-                    className="rounded-full border border-[var(--c-border)] bg-[var(--c-surface)] px-3.5 py-1.5 font-mono text-[11px] text-[var(--c-ink-2)] shadow-sm"
+                    className="rounded-full border border-[var(--c-border)] bg-[var(--c-surface)] px-2.5 py-1 font-mono text-[10px] text-[var(--c-ink-2)] shadow-sm"
                   >
                     {b}
                   </span>
                 ))}
-                <span className="rounded-full border border-[var(--c-accent)]/40 bg-[var(--c-accent)]/[0.08] px-3.5 py-1.5 font-mono text-[11px] text-[var(--c-accent)]">
+                <span className="rounded-full border border-[var(--c-accent)]/40 bg-[var(--c-accent)]/[0.08] px-2.5 py-1 font-mono text-[10px] text-[var(--c-accent)]">
                   Free to start
                 </span>
               </div>
@@ -217,16 +219,47 @@ export default function DashboardPage() {
                 <span className="h-1.5 w-1.5 rounded-full bg-[var(--c-accent)]" />
                 shared via 1 private link
               </div>
-              <div
-                className="tilt-card overflow-hidden rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-3 shadow-2xl"
-                style={{ "--thumb-scale": "0.36" } as React.CSSProperties}
-              >
-                <div className="overflow-hidden rounded-lg">
-                  <TemplateThumbnail
-                    templateId={templates[0].id}
-                    resume={SAMPLE_RESUME}
-                    config={SAMPLE_CONFIG}
-                  />
+              <div className="overflow-hidden rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6 shadow-2xl">
+                {/* header */}
+                <p
+                  className="text-lg text-[var(--c-ink)]"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  John Doe
+                </p>
+                <p className="mt-0.5 text-[13px] text-[var(--c-ink-2)]">
+                  Cloud Infrastructure Engineer
+                </p>
+                <p className="mt-1.5 font-mono text-[10px] text-[var(--c-muted-2)]">
+                  john.doe@email.com · London, UK
+                </p>
+
+                {/* summary */}
+                <p className="eyebrow mb-2 mt-5">Summary</p>
+                <div className="space-y-1.5">
+                  <span className="block h-1.5 w-full rounded-full bg-[var(--c-ink)]/10" />
+                  <span className="block h-1.5 w-[88%] rounded-full bg-[var(--c-ink)]/10" />
+                  <span className="block h-1.5 w-[72%] rounded-full bg-[var(--c-ink)]/10" />
+                </div>
+
+                {/* experience */}
+                <p className="eyebrow mb-2 mt-5">Experience</p>
+                <div className="space-y-1.5">
+                  <span className="block h-1.5 w-[94%] rounded-full bg-[var(--c-ink)]/10" />
+                  <span className="block h-1.5 w-full rounded-full bg-[var(--c-ink)]/10" />
+                  <span className="block h-1.5 w-[64%] rounded-full bg-[var(--c-ink)]/10" />
+                </div>
+
+                {/* skill chips */}
+                <div className="mt-5 flex flex-wrap gap-1.5">
+                  {["OpenStack", "Python", "5G Core"].map((s) => (
+                    <span
+                      key={s}
+                      className="rounded-full border border-[var(--c-border)] bg-[var(--c-surface-3)] px-2.5 py-1 font-mono text-[10px] text-[var(--c-ink-2)]"
+                    >
+                      {s}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
@@ -240,9 +273,9 @@ export default function DashboardPage() {
             <p className="eyebrow mb-3">
               Parses cleanly into the systems recruiters actually use
             </p>
-            <div className="marquee-track flex gap-12 font-mono text-sm text-[var(--c-muted)]">
+            <div className="marquee-track flex font-mono text-sm text-[var(--c-muted)]">
               {[...ATS_SYSTEMS, ...ATS_SYSTEMS].map((name, i) => (
-                <span key={i} className="whitespace-nowrap">
+                <span key={i} className="whitespace-nowrap pr-12">
                   {name}
                 </span>
               ))}
