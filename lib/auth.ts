@@ -42,12 +42,18 @@ export async function getUserId(): Promise<string | null> {
   return session.userId ?? null;
 }
 
-/** Returns the logged-in user (id, username, fullName), or null. */
+/** Returns the logged-in user (id, username, fullName, role), or null. */
 export async function getCurrentUser() {
   const userId = await getUserId();
   if (!userId) return null;
   return prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, username: true, fullName: true },
+    select: { id: true, username: true, fullName: true, role: true },
   });
+}
+
+/** Returns the logged-in user only if they hold the ADMIN role, else null. */
+export async function getCurrentAdmin() {
+  const user = await getCurrentUser();
+  return user?.role === "ADMIN" ? user : null;
 }

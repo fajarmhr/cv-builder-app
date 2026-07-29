@@ -1,4 +1,4 @@
-import { LayoutDashboard, LogIn } from "lucide-react";
+import { LayoutDashboard, LogIn, Shield } from "lucide-react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LogoutButton } from "@/components/auth/LogoutButton";
@@ -35,6 +35,15 @@ export default async function ProtectedLayout({
                 <LayoutDashboard className="h-4 w-4" />
                 {user ? "Dashboard" : "Templates"}
               </Link>
+              {user?.role === "ADMIN" && (
+                <Link
+                  href="/admin"
+                  className="hidden items-center gap-1.5 rounded-full border border-[var(--c-accent)]/40 bg-[var(--c-accent)]/[0.08] px-3 py-1.5 text-sm font-medium text-[var(--c-accent)] transition-colors hover:bg-[var(--c-accent)]/15 sm:flex"
+                >
+                  <Shield className="h-4 w-4" />
+                  Admin
+                </Link>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <ThemeToggle />

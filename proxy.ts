@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const SESSION_COOKIE = "cv-builder-session";
 const AUTH_PAGES = ["/login", "/register"];
-const PROTECTED_PREFIXES = ["/editor"];
+const PROTECTED_PREFIXES = ["/editor", "/admin"];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
