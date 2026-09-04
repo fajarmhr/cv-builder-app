@@ -447,8 +447,8 @@ function renderProjects(resume: ResumeData, styles: DocxStyleConfig): Paragraph[
   if (!resume.projects.length) return [];
   const paragraphs: Paragraph[] = [sectionHeading("Projects", styles)];
   for (const p of resume.projects) {
-    const dateStr = (p.startDate || p.endDate)
-      ? `${p.startDate ? formatDate(p.startDate) : ""}${p.startDate && p.endDate ? " — " : ""}${p.endDate ? formatDate(p.endDate) : ""}`
+    const dateStr = (p.startDate || p.endDate || p.isCurrent)
+      ? `${p.startDate ? formatDate(p.startDate) : ""}${p.startDate && (p.endDate || p.isCurrent) ? " — " : ""}${p.isCurrent ? "Present" : p.endDate ? formatDate(p.endDate) : ""}`
       : "";
     paragraphs.push(
       new Paragraph({
@@ -691,8 +691,8 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
 
     case "projects":
       for (const p of cs.items as Project[]) {
-        const projDateStr = (p.startDate || p.endDate)
-          ? `${p.startDate ? formatDate(p.startDate) : ""}${p.startDate && p.endDate ? " — " : ""}${p.endDate ? formatDate(p.endDate) : ""}`
+        const projDateStr = (p.startDate || p.endDate || p.isCurrent)
+          ? `${p.startDate ? formatDate(p.startDate) : ""}${p.startDate && (p.endDate || p.isCurrent) ? " — " : ""}${p.isCurrent ? "Present" : p.endDate ? formatDate(p.endDate) : ""}`
           : "";
         paragraphs.push(new Paragraph({
           children: [

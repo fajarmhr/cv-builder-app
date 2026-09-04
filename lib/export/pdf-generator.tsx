@@ -349,11 +349,11 @@ function renderProjectItems(
     <View key={p.id || i} style={styles.itemBlockSm}>
       <View style={styles.rowBetween}>
         <Text style={styles.bold}>{p.name}</Text>
-        {p.startDate || p.endDate ? (
+        {p.startDate || p.endDate || p.isCurrent ? (
           <Text style={styles.sub}>
             {p.startDate ? formatDate(p.startDate) : ""}
-            {p.startDate && p.endDate ? " — " : ""}
-            {p.endDate ? formatDate(p.endDate) : ""}
+            {p.startDate && (p.endDate || p.isCurrent) ? " — " : ""}
+            {p.isCurrent ? "Present" : p.endDate ? formatDate(p.endDate) : ""}
           </Text>
         ) : null}
       </View>

@@ -64,6 +64,7 @@ export interface Project {
   url: string;
   startDate: string;
   endDate: string;
+  isCurrent?: boolean;
   technologies: string[];
 }
 

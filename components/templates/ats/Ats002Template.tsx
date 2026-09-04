@@ -139,9 +139,9 @@ export function Ats002Template({ resume, config }: TemplateProps) {
             <div key={p.id || i} className="mb-2">
               <div className="flex justify-between items-baseline gap-3">
                 <p className="font-bold text-xs">{p.name}</p>
-                {(p.startDate || p.endDate) && (
+                {(p.startDate || p.endDate || p.isCurrent) && (
                   <span className="text-[10px] shrink-0" style={{ color: "#666" }}>
-                    {dateRange(p.startDate, p.endDate)}
+                    {dateRange(p.startDate, p.endDate, p.isCurrent)}
                   </span>
                 )}
               </div>

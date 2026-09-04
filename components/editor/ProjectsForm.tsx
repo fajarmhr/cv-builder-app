@@ -60,7 +60,7 @@ function ProjectEntry({
   entryRef.current = entry;
 
   const handleFieldChange = useCallback(
-    (field: keyof Project, value: string | string[]) => {
+    (field: keyof Project, value: string | string[] | boolean) => {
       const key = `${index}-${field}`;
       if (debounceTimers.current[key]) clearTimeout(debounceTimers.current[key]);
       debounceTimers.current[key] = setTimeout(() => {
@@ -172,8 +172,20 @@ function ProjectEntry({
                 type="month"
                 className="h-9 text-sm mt-1"
                 defaultValue={entry.endDate}
+                disabled={entry.isCurrent}
                 onChange={(e) => handleFieldChange("endDate", e.target.value)}
               />
+              <label className="flex items-center gap-1.5 mt-1.5">
+                <input
+                  type="checkbox"
+                  className="rounded"
+                  defaultChecked={entry.isCurrent}
+                  onChange={(e) => handleFieldChange("isCurrent", e.target.checked)}
+                />
+                <span className="text-xs text-muted-foreground">
+                  Currently working on this project
+                </span>
+              </label>
             </div>
           </div>
 
@@ -231,6 +243,7 @@ export function ProjectsForm() {
       url: "",
       startDate: "",
       endDate: "",
+      isCurrent: false,
       technologies: [],
     } as Project);
   }

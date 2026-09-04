@@ -393,11 +393,11 @@ export function RenderClonedSection({
             <div key={i} className="mb-2">
               <div className="flex justify-between items-baseline">
                 <p className={`font-bold ${textSize}`}>{p.name}</p>
-                {(p.startDate || p.endDate) && (
+                {(p.startDate || p.endDate || p.isCurrent) && (
                   <span className={subTextSize} style={{ color: subColor }}>
                     {p.startDate && formatDate(p.startDate)}
-                    {p.startDate && p.endDate && " \u2014 "}
-                    {p.endDate && formatDate(p.endDate)}
+                    {p.startDate && (p.endDate || p.isCurrent) && " \u2014 "}
+                    {p.isCurrent ? "Present" : p.endDate && formatDate(p.endDate)}
                   </span>
                 )}
               </div>

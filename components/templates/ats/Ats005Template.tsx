@@ -132,11 +132,11 @@ export function Ats005Template({ resume, config }: TemplateProps) {
               <div key={p.id || i} className="mb-1.5">
                 <div className="flex justify-between items-baseline">
                   <p className="font-bold text-[10px]">{p.name}</p>
-                  {(p.startDate || p.endDate) && (
+                  {(p.startDate || p.endDate || p.isCurrent) && (
                     <span className="text-[9px]" style={{ color: "#666" }}>
                       {p.startDate && formatDate(p.startDate)}
-                      {p.startDate && p.endDate && " \u2014 "}
-                      {p.endDate && formatDate(p.endDate)}
+                      {p.startDate && (p.endDate || p.isCurrent) && " \u2014 "}
+                      {p.isCurrent ? "Present" : p.endDate && formatDate(p.endDate)}
                     </span>
                   )}
                 </div>
