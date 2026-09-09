@@ -47,6 +47,7 @@ export default function DashboardPage() {
   const [isGuest, setIsGuest] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [showAllTemplates, setShowAllTemplates] = useState(false);
 
   const fetchResumes = useCallback(async () => {
     try {
@@ -149,6 +150,8 @@ export default function DashboardPage() {
   /* ─────────────── Guest view: browse templates, no login ─────────────── */
   if (isGuest) {
     const templates = getAllTemplates();
+    // Show a curated first three; "Browse all" expands the rest in place.
+    const visibleTemplates = showAllTemplates ? templates : templates.slice(0, 3);
     return (
       <div className="dashboard-shell relative min-h-[calc(100vh-4rem)] overflow-hidden">
         {/* floating accent glow for depth */}
@@ -290,22 +293,24 @@ export default function DashboardPage() {
             <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
               <div>
                 <p className="eyebrow mb-1.5">
-                  Three formats, all single-column &amp; ATS-clean
+                  {`${templates.length} formats, all single-column & ATS-clean`}
                 </p>
                 <h2 className="text-3xl text-[var(--c-ink)]">
                   Pick a starting point.
                 </h2>
               </div>
-              <Link
-                href="/login"
+              <button
+                type="button"
+                onClick={() => setShowAllTemplates((v) => !v)}
+                aria-expanded={showAllTemplates}
                 className="font-mono text-xs text-[var(--c-accent)] hover:underline"
               >
-                Browse all →
-              </Link>
+                {showAllTemplates ? "Show fewer ↑" : "Browse all →"}
+              </button>
             </div>
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {templates.map((t, i) => (
+              {visibleTemplates.map((t, i) => (
                 <Link
                   key={t.id}
                   href={`/templates/${t.id}`}
