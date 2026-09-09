@@ -105,14 +105,14 @@ export function TemplateCustomizer() {
           <Settings2 className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md rounded-3xl border-[var(--c-border)] bg-[var(--c-surface)] text-[var(--c-ink)] shadow-2xl shadow-[#1b2230]/20">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[85vh] max-w-md flex-col overflow-hidden rounded-3xl border-[var(--c-border)] bg-[var(--c-surface)] text-[var(--c-ink)] shadow-2xl shadow-[#1b2230]/20 md:left-[21%]">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="font-display text-2xl font-semibold text-[var(--c-ink)]">
             Customize Template
           </DialogTitle>
         </DialogHeader>
 
-        <div className="mt-2 space-y-5">
+        <div className="-mr-2 mt-2 min-h-0 flex-1 space-y-5 overflow-y-auto pr-2">
           <div>
             <Label className={LABEL_CLASS}>Accent Color</Label>
             <div className="flex flex-wrap gap-2">

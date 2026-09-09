@@ -2,6 +2,7 @@
 
 import type { TemplateConfig } from "@/types/resume";
 import { getTemplateFont } from "@/lib/template-fonts";
+import { FONT_SCALE_MAP, LINE_SPACING_MAP } from "./template-helpers";
 
 interface TemplateWrapperProps {
   config: TemplateConfig;
@@ -15,18 +16,6 @@ const FONT_SIZE_MAP: Record<string, string> = {
   large: "12pt",
 };
 
-const LINE_SPACING_MAP: Record<string, string> = {
-  compact: "1.2",
-  normal: "1.4",
-  relaxed: "1.6",
-};
-
-const SCALE_MAP: Record<string, number> = {
-  small: 0.9,
-  medium: 1.0,
-  large: 1.1,
-};
-
 export function TemplateWrapper({
   config,
   children,
@@ -38,7 +27,7 @@ export function TemplateWrapper({
   ).cssFamily;
   const fontSize = FONT_SIZE_MAP[config.fontSize] || FONT_SIZE_MAP["medium"];
   const lineSpacing = LINE_SPACING_MAP[config.lineSpacing] || LINE_SPACING_MAP["normal"];
-  const scale = SCALE_MAP[config.fontSize] || 1;
+  const scale = FONT_SCALE_MAP[config.fontSize] ?? 1;
 
   return (
     <div
