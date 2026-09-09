@@ -2,6 +2,7 @@
 
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
+import { availabilityLabel } from "@/types/resume";
 import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection, SectionFrame } from "../template-helpers";
 
 /**
@@ -38,10 +39,13 @@ export function Ats002Template({ resume, config }: TemplateProps) {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">{info.name}</h1>
               <p className="text-[10px] mt-1" style={{ color: "#555" }}>
-                {[info.address, info.email, info.phone, info.linkedin, info.website]
+                {[info.address, info.email, info.phone, info.linkedin, info.website, availabilityLabel(info)]
                   .filter(Boolean)
                   .join("  \u00B7  ")}
               </p>
+              {info.title && (
+                <p className="text-xs font-bold mt-1" style={{ color: accent }}>{info.title}</p>
+              )}
             </div>
           </div>
         </div>

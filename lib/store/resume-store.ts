@@ -41,7 +41,7 @@ interface ResumeStore {
 
   // Field updates
   updateField: (section: SectionId, data: unknown) => void;
-  updatePersonalInfo: (field: keyof PersonalInfo, value: string) => void;
+  updatePersonalInfo: (field: keyof PersonalInfo, value: string | boolean) => void;
   updateSummary: (value: string) => void;
   updateTitle: (title: string) => void;
 
@@ -141,7 +141,7 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
     });
   },
 
-  updatePersonalInfo: (field: keyof PersonalInfo, value: string) => {
+  updatePersonalInfo: (field: keyof PersonalInfo, value: string | boolean) => {
     const { resume, history } = get();
     if (!resume) return;
 

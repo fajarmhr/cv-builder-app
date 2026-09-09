@@ -2,6 +2,7 @@
 
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
+import { availabilityLabel } from "@/types/resume";
 import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection, SectionFrame } from "../template-helpers";
 
 /**
@@ -33,13 +34,19 @@ export function Ats007Template({ resume, config }: TemplateProps) {
         <div key="pi" className="mb-3 flex justify-between items-end pb-2 border-b-2 border-black gap-4">
           <div className="flex items-center gap-3">
             <ProfilePhoto photoUrl={info.photoUrl} name={info.name} size={48} />
-            <h1 className="text-2xl font-bold uppercase tracking-wide">{info.name}</h1>
+            <div>
+              <h1 className="text-2xl font-bold uppercase tracking-wide">{info.name}</h1>
+              {info.title && (
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] mt-0.5">{info.title}</p>
+              )}
+            </div>
           </div>
           <div className="text-right text-[9px] leading-relaxed shrink-0" style={{ color: "#555" }}>
             {info.address && <p>{info.address}</p>}
             {info.phone && <p>{info.phone}</p>}
             {info.email && <p>{info.email}</p>}
             {info.linkedin && <p>{info.linkedin}</p>}
+            {availabilityLabel(info) && <p className="italic">{availabilityLabel(info)}</p>}
           </div>
         </div>
       ) : null,

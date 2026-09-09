@@ -2,7 +2,7 @@
 
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
-import type { SectionId } from "@/types/resume";
+import { availabilityLabel, type SectionId } from "@/types/resume";
 import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection } from "../template-helpers";
 
 /**
@@ -33,8 +33,13 @@ export function Ats004Template({ resume, config }: TemplateProps) {
             <div>
               <h1 className="text-2xl font-bold uppercase tracking-widest">{info.name}</h1>
               <p className="text-[10px] mt-1" style={{ color: "#555" }}>
-                {[info.phone, info.email, info.address, info.linkedin].filter(Boolean).join(" | ")}
+                {[info.phone, info.email, info.address, info.linkedin, availabilityLabel(info)]
+                  .filter(Boolean)
+                  .join(" | ")}
               </p>
+              {info.title && (
+                <p className="text-xs font-bold uppercase tracking-wide mt-1">{info.title}</p>
+              )}
             </div>
           </div>
         </div>

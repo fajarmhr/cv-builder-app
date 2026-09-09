@@ -9,7 +9,7 @@ import {
   renderToBuffer,
 } from "@react-pdf/renderer";
 import type { ResumeData, TemplateConfig, CustomSection } from "@/types/resume";
-import { normalizeWorkExperience } from "@/types/resume";
+import { normalizeWorkExperience, availabilityLabel } from "@/types/resume";
 import {
   formatDate,
   getVisibleSections,
@@ -160,6 +160,14 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
     // Classic: cap the contact width so a long line wraps tidily onto two
     // centred rows (matches the live preview) instead of one full-width line.
     contactClassic: { maxWidth: 300, alignSelf: "center" },
+    headline: {
+      fontFamily: f.bodyBold,
+      fontSize: 9,
+      color: ink,
+      marginTop: 2,
+      textAlign: variant === "classic" ? "center" : "left",
+      textTransform: variant === "modern" ? "none" : "uppercase",
+    },
     // sections
     sectionTitle: {
       fontFamily: f.headerBold,
@@ -375,16 +383,26 @@ function Header({
   styles: Styles;
 }) {
   if (!info) return null;
-  const contactParts = [info.address, info.email, info.phone, info.linkedin, info.website].filter(Boolean);
+  const contactParts = [
+    info.address,
+    info.email,
+    info.phone,
+    info.linkedin,
+    info.website,
+    availabilityLabel(info),
+  ].filter(Boolean);
 
   // Minimal — name left, contact stacked on the right, strong rule beneath.
   if (variant === "minimal") {
-    const rightLines = [info.address, info.phone, info.email, info.linkedin].filter(Boolean);
+    const rightLines = [info.address, info.phone, info.email, info.linkedin, availabilityLabel(info)].filter(Boolean);
     return (
       <View style={styles.headerSplit}>
         <View style={styles.minimalLeft}>
           {info.photoUrl ? <Image style={styles.photo} src={info.photoUrl} /> : null}
-          <Text style={[styles.name, styles.nameFlex]}>{info.name}</Text>
+          <View style={styles.nameFlex}>
+            <Text style={styles.name}>{info.name}</Text>
+            {info.title ? <Text style={styles.headline}>{info.title}</Text> : null}
+          </View>
         </View>
         <View style={[styles.contactRight, { flexShrink: 0 }]}>
           {rightLines.map((l, i) => (
@@ -404,6 +422,7 @@ function Header({
           <View style={styles.headerCol}>
             <Text style={styles.name}>{info.name}</Text>
             <Text style={styles.contact}>{contactParts.join(" · ")}</Text>
+            {info.title ? <Text style={styles.headline}>{info.title}</Text> : null}
           </View>
         </View>
       </View>
@@ -418,6 +437,7 @@ function Header({
         <Text style={styles.name}>{info.name}</Text>
       </View>
       <Text style={[styles.contact, styles.contactClassic]}>{contactParts.join(" · ")}</Text>
+      {info.title ? <Text style={styles.headline}>{info.title}</Text> : null}
     </View>
   );
 }

@@ -11,7 +11,7 @@ import {
   LevelFormat,
 } from "docx";
 import type { ResumeData, TemplateConfig, CustomSection, Education, Skill, Certification, Language, Project, Award, Reference } from "@/types/resume";
-import { normalizeWorkExperience } from "@/types/resume";
+import { normalizeWorkExperience, availabilityLabel } from "@/types/resume";
 import { isCustomSectionId, getCustomSectionEntryId } from "@/types/resume";
 import { getDocxStyles, type DocxStyleConfig } from "./docx-styles";
 import { groupSkills } from "@/components/templates/template-helpers";
@@ -185,7 +185,14 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
     );
   }
 
-  const contactParts = [info.email, info.phone, info.address, info.linkedin, info.website].filter(Boolean);
+  const contactParts = [
+    info.email,
+    info.phone,
+    info.address,
+    info.linkedin,
+    info.website,
+    availabilityLabel(info),
+  ].filter(Boolean);
   if (contactParts.length > 0) {
     paragraphs.push(
       new Paragraph({
@@ -202,6 +209,24 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
         ...(styles.variant === "minimal"
           ? { border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: "000000" } } }
           : {}),
+      })
+    );
+  }
+
+  if (info.title) {
+    paragraphs.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: info.title,
+            bold: true,
+            size: styles.normalSize,
+            font: styles.fontFamily,
+            allCaps: styles.variant !== "modern",
+          }),
+        ],
+        alignment: styles.headerAlign,
+        spacing: { after: 120 },
       })
     );
   }

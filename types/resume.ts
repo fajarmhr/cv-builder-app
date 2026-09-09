@@ -1,11 +1,27 @@
 export interface PersonalInfo {
   name: string;
+  /** Professional headline shown under the contact line, e.g. "Cloud Engineer | DevOps" */
+  title?: string;
   email: string;
   phone: string;
   address: string;
   linkedin: string;
   website: string;
   photoUrl: string;
+  openToRemote?: boolean;
+  openToAbroad?: boolean;
+}
+
+/**
+ * Availability line derived from the openToRemote / openToAbroad flags.
+ * Returns "" when neither is set, so callers can just skip rendering.
+ */
+export function availabilityLabel(info: PersonalInfo | null | undefined): string {
+  if (!info) return "";
+  if (info.openToRemote && info.openToAbroad) return "Open to Remote & International Opportunities";
+  if (info.openToRemote) return "Open to Remote Opportunities";
+  if (info.openToAbroad) return "Open to International Opportunities";
+  return "";
 }
 
 /** A single role held at a company. */

@@ -32,6 +32,11 @@ export function PersonalInfoForm() {
     [updatePersonalInfo]
   );
 
+  const availability: { key: "openToRemote" | "openToAbroad"; label: string }[] = [
+    { key: "openToRemote", label: "Open to remote work" },
+    { key: "openToAbroad", label: "Open to international / abroad" },
+  ];
+
   const fields: {
     key: keyof PersonalInfo;
     label: string;
@@ -39,6 +44,7 @@ export function PersonalInfoForm() {
     placeholder: string;
   }[] = [
     { key: "name", label: "Full Name", type: "text", placeholder: "John Doe" },
+    { key: "title", label: "Professional Title", type: "text", placeholder: "Cloud Engineer | DevOps" },
     { key: "email", label: "Email", type: "email", placeholder: "john@example.com" },
     { key: "phone", label: "Phone", type: "tel", placeholder: "+1 234 567 890" },
     { key: "address", label: "Address", type: "text", placeholder: "City, Country" },
@@ -58,12 +64,39 @@ export function PersonalInfoForm() {
               id={`pi-${key}`}
               type={type}
               placeholder={placeholder}
-              defaultValue={info[key]}
+              defaultValue={(info[key] as string) || ""}
               onChange={(e) => handleChange(key, e.target.value)}
               className="h-10 rounded-xl border-[var(--c-border)] bg-[var(--c-surface)] text-sm text-[var(--c-ink)] shadow-sm placeholder:text-[var(--c-muted-2)] focus-visible:ring-[var(--c-ring)]/20"
             />
           </div>
         ))}
+      </div>
+
+      <div>
+        <Label className="text-xs mb-1.5 block font-medium text-[var(--c-muted)]">
+          Availability
+        </Label>
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          {availability.map(({ key, label }) => (
+            <label
+              key={key}
+              htmlFor={`pi-${key}`}
+              className="flex cursor-pointer items-center gap-2 text-sm text-[var(--c-ink)]"
+            >
+              <input
+                id={`pi-${key}`}
+                type="checkbox"
+                checked={!!info[key]}
+                onChange={(e) => updatePersonalInfo(key, e.target.checked)}
+                className="h-4 w-4 rounded border-[var(--c-border)] accent-[var(--c-ring)]"
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-[var(--c-muted-2)]">
+          Shown next to your contact links, e.g. &ldquo;Open to Remote &amp; International Opportunities&rdquo;.
+        </p>
       </div>
     </div>
   );

@@ -43,7 +43,7 @@ export function SkillsForm() {
     addItem("skills", {
       id: generateId(),
       name: "",
-      level: "Intermediate",
+      level: "",
     } as Skill);
   }
 
@@ -83,6 +83,7 @@ export function SkillsForm() {
                     defaultValue={skill.level}
                     onChange={(e) => handleUpdate(index, "level", e.target.value)}
                   >
+                    <option value="">No level</option>
                     {LEVELS.map((level) => (
                       <option key={level} value={level}>
                         {level}

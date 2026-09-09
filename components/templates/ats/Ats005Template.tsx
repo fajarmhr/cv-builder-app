@@ -2,7 +2,7 @@
 
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
-import type { SectionId } from "@/types/resume";
+import { availabilityLabel, type SectionId } from "@/types/resume";
 import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection } from "../template-helpers";
 
 /**
@@ -215,7 +215,11 @@ export function Ats005Template({ resume, config }: TemplateProps) {
           <ProfilePhoto photoUrl={info.photoUrl} name={info.name} size={72} />
           <div>
             <h1 className="text-xl font-bold uppercase tracking-wider">{info.name}</h1>
+            {info.title && <p className="text-[11px] font-bold mt-0.5">{info.title}</p>}
             {info.address && <p className="text-[10px] mt-0.5" style={{ color: "#555" }}>{info.address}</p>}
+            {availabilityLabel(info) && (
+              <p className="text-[10px] italic mt-0.5" style={{ color: "#555" }}>{availabilityLabel(info)}</p>
+            )}
           </div>
         </div>
       )}
