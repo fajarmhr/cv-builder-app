@@ -10,7 +10,7 @@ import {
   BorderStyle,
   LevelFormat,
 } from "docx";
-import type { ResumeData, TemplateConfig, CustomSection, Education, Skill, Certification, Language, Project, Award, Reference } from "@/types/resume";
+import type { ResumeData, TemplateConfig, CustomSection, Education, Skill, Certification, Language, Project, Award, Reference, SectionId } from "@/types/resume";
 import { normalizeWorkExperience, availabilityLabel, formatGpa } from "@/types/resume";
 import { isCustomSectionId, getCustomSectionEntryId } from "@/types/resume";
 import { getDocxStyles, type DocxStyleConfig } from "./docx-styles";
@@ -121,7 +121,7 @@ function bulletParagraph(text: string, styles: DocxStyleConfig): Paragraph {
           font: styles.fontFamily,
         }),
       ],
-      spacing: { after: 20 },
+      spacing: { after: 20, line: styles.spacing.line },
     });
   }
 
@@ -137,7 +137,7 @@ function bulletParagraph(text: string, styles: DocxStyleConfig): Paragraph {
       reference: BULLET_REF,
       level: 0,
     },
-    spacing: { after: 20 },
+    spacing: { after: 20, line: styles.spacing.line },
   });
 }
 
@@ -249,7 +249,7 @@ function renderSummary(summary: string | null, styles: DocxStyleConfig): Paragra
             break: i > 0 ? 1 : undefined,
           })
       ),
-      spacing: { before: 40, after: styles.spacing.after },
+      spacing: { before: 40, after: styles.spacing.after, line: styles.spacing.line },
       ...(styles.variant === "classic"
         ? { alignment: AlignmentType.JUSTIFIED }
         : {}),
@@ -806,6 +806,23 @@ export async function generateDocx(
   const hiddenSections = new Set<string>(resume.hiddenSections || []);
   const sectionOrder = resume.sectionOrder || [];
 
+  // Per-section font-size / line-spacing overrides: a section value replaces
+  // the global one for that section, mirroring <SectionFrame> in the preview.
+  const styleCache = new Map<string, DocxStyleConfig>();
+  const stylesFor = (sectionId: string): DocxStyleConfig => {
+    const o = config.sectionStyles?.[sectionId as SectionId];
+    if (!o || (!o.fontSize && !o.lineSpacing)) return styles;
+    const fontSize = o.fontSize ?? config.fontSize;
+    const lineSpacing = o.lineSpacing ?? config.lineSpacing;
+    const key = `${fontSize}|${lineSpacing}`;
+    let cached = styleCache.get(key);
+    if (!cached) {
+      cached = getDocxStyles({ ...config, fontSize, lineSpacing }, templateId);
+      styleCache.set(key, cached);
+    }
+    return cached;
+  };
+
   const children: Paragraph[] = [];
 
   for (const sectionId of sectionOrder) {
@@ -842,7 +859,7 @@ export async function generateDocx(
 
     const renderer = SECTION_RENDERERS[sectionId];
     if (renderer) {
-      children.push(...renderer(resume, styles));
+      children.push(...renderer(resume, stylesFor(sectionId)));
     }
   }
 

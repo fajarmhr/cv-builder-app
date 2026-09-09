@@ -8,7 +8,7 @@ import {
   Font,
   renderToBuffer,
 } from "@react-pdf/renderer";
-import type { ResumeData, TemplateConfig, CustomSection } from "@/types/resume";
+import type { ResumeData, TemplateConfig, CustomSection, SectionId } from "@/types/resume";
 import { normalizeWorkExperience, availabilityLabel, formatGpa } from "@/types/resume";
 import {
   formatDate,
@@ -468,7 +468,32 @@ function ResumePdfDocument({
   const info = resume.personalInfo;
   const visible = getVisibleSections(resume);
 
-  const renderers: Record<string, () => React.ReactNode> = {
+  // react-pdf does not cascade fontSize, so each section that carries an
+  // override gets its own StyleSheet. Cached by resolved size+spacing, so a
+  // document builds at most a handful. Mirrors <SectionFrame> in the preview.
+  const styleCache = new Map<string, Styles>();
+  function stylesFor(sectionId: string): Styles {
+    const o = config.sectionStyles?.[sectionId as SectionId];
+    if (!o || (!o.fontSize && !o.lineSpacing)) return styles;
+    const fontSize = o.fontSize ?? config.fontSize;
+    const lineSpacing = o.lineSpacing ?? config.lineSpacing;
+    const key = `${fontSize}|${lineSpacing}`;
+    let cached = styleCache.get(key);
+    if (!cached) {
+      cached = buildStyles({ ...config, fontSize, lineSpacing }, variant);
+      styleCache.set(key, cached);
+    }
+    return cached;
+  }
+
+  function sectionFrame(sectionId: string) {
+    const o = config.sectionStyles?.[sectionId as SectionId];
+    if (!o || (!o.fontSize && !o.lineSpacing)) return undefined;
+    const st = stylesFor(sectionId);
+    return { fontSize: st.page.fontSize, lineHeight: st.page.lineHeight };
+  }
+
+  const renderersFor = (styles: Styles): Record<string, () => React.ReactNode> => ({
     personalInfo: () =>
       info ? <Header key="pi" info={info} variant={variant} styles={styles} /> : null,
 
@@ -585,7 +610,7 @@ function ResumePdfDocument({
             ))}
         </View>
       ) : null,
-  };
+  });
 
   function renderCloned(cs: CustomSection) {
     if (!cs.basedOn || !cs.items?.length) {
@@ -629,7 +654,15 @@ function ResumePdfDocument({
             const cs = findCustomSection(resume, s);
             return cs ? renderCloned(cs) : null;
           }
-          return renderers[s]?.();
+          const node = renderersFor(stylesFor(s))[s]?.();
+          const frame = sectionFrame(s);
+          return frame ? (
+            <View key={s} style={frame}>
+              {node}
+            </View>
+          ) : (
+            node
+          );
         })}
       </Page>
     </Document>
