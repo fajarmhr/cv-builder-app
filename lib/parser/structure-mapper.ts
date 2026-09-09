@@ -256,7 +256,7 @@ const PHONE_RE =
 const LINKEDIN_RE = /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w\-]+\/?/i;
 const GITHUB_RE = /(?:https?:\/\/)?(?:www\.)?github\.com\/[\w\-]+\/?/i;
 const URL_RE = /https?:\/\/[^\s|,]+/gi;
-const GPA_RE = /(?:GPA|IPK|Cumulative\s+GPA)[:\s]*(\d+[.,]\d+)/i;
+const GPA_RE = /(?:GPA|IPK|Cumulative\s+GPA)[:\s]*(\d+[.,]\d+)(?:\s*(?:\/|out\s+of|dari)\s*(\d+(?:[.,]\d+)?))?/i;
 const DEGREE_KEYWORDS =
   /\b(bachelor|master|doctor|phd|mba|diploma|associate|s\.?[123]|d\.?[34]|sma|smk|b\.?[as]c?\.?|m\.?[as]c?\.?|sarjana|magister)\b/i;
 const BULLET_RE = /^[\s]*[•\-\*\u2022\u2023\u25E6\u2043\u25AA\u25AB\u25CF]\s*/;
@@ -666,6 +666,7 @@ function parseEducation(lines: string[]): Education[] {
       startDate: block.startDate,
       endDate: block.endDate,
       gpa: "",
+      gpaMax: "",
     };
 
     for (const line of block.lines) {
@@ -686,6 +687,7 @@ function parseEducation(lines: string[]): Education[] {
       const gpaMatch = cleanLine.match(GPA_RE);
       if (gpaMatch) {
         entry.gpa = gpaMatch[1];
+        if (gpaMatch[2]) entry.gpaMax = gpaMatch[2];
       }
 
       // Degree keywords
