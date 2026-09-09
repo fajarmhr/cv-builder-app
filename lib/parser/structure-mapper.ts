@@ -653,11 +653,36 @@ function parseExperience(lines: string[]): WorkExperience[] {
 
 // ─── Education parsing ───
 
+/**
+ * Is this line nothing but a GPA (e.g. "GPA 3.32 / 4.00")? Such a line is a
+ * detail of the entry above it, never an education entry in its own right.
+ */
+function isGpaOnlyLine(line: string): boolean {
+  const t = line.trim();
+  if (!GPA_RE.test(t)) return false;
+  return t.replace(GPA_RE, "").replace(/[\s,;|·—–-]/g, "").length === 0;
+}
+
 function parseEducation(lines: string[]): Education[] {
   const blocks = groupIntoBlocks(lines);
+
+  // Pre-process: attachFloatingDates replaces a floating date line with a
+  // blank, which groupIntoBlocks then reads as a paragraph break — so a
+  // trailing "GPA 3.32 / 4.00" lands in a block of its own and would become
+  // a phantom entry. Fold GPA-only blocks back into the preceding entry.
+  const mergedBlocks: RawBlock[] = [];
+  for (const block of blocks) {
+    const nonEmpty = block.lines.filter((l) => l.trim().length > 0);
+    if (nonEmpty.length > 0 && nonEmpty.every(isGpaOnlyLine) && mergedBlocks.length > 0) {
+      mergedBlocks[mergedBlocks.length - 1].lines.push(...nonEmpty);
+      continue;
+    }
+    mergedBlocks.push({ ...block, lines: [...block.lines] });
+  }
+
   const entries: Education[] = [];
 
-  for (const block of blocks) {
+  for (const block of mergedBlocks) {
     const entry: Education = {
       id: genId(),
       institution: "",
@@ -688,6 +713,8 @@ function parseEducation(lines: string[]): Education[] {
       if (gpaMatch) {
         entry.gpa = gpaMatch[1];
         if (gpaMatch[2]) entry.gpaMax = gpaMatch[2];
+        // Nothing else on the line — don't let it be read as an institution.
+        if (isGpaOnlyLine(cleanLine)) continue;
       }
 
       // Degree keywords
