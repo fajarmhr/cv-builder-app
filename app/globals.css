@@ -405,6 +405,15 @@
 .cv-template-root .text-\[10px\] { font-size: calc(10px * var(--cv-scale, 1)) !important; }
 .cv-template-root .text-\[9px\] { font-size: calc(9px * var(--cv-scale, 1)) !important; }
 
+/* Body text follows --line-spacing (which <SectionFrame> re-declares per
+   section). Tailwind's text-* utilities ship a fixed line-height that would
+   otherwise beat the inherited value, so only the summary — which opts in via
+   leading-[var(--line-spacing)] — responded to the spacing control.
+   Headings keep their own tighter leading. */
+.cv-template-root .text-xs:not([class*="leading-"]),
+.cv-template-root .text-\[10px\]:not([class*="leading-"]),
+.cv-template-root .text-\[9px\]:not([class*="leading-"]) { line-height: var(--line-spacing, 1.4); }
+
 /* ── Motion (CSS-only, hardware-accelerated) ───────────── */
 @keyframes reveal-up {
   from { opacity: 0; transform: translateY(14px); }
