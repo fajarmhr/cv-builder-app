@@ -21,6 +21,10 @@ import {
 } from "@/components/templates/template-helpers";
 import { getTemplateFont } from "@/lib/template-fonts";
 
+// The on-screen templates never hyphenate; react-pdf does by default, which
+// broke long contact lines as "Oppor-tunities". Keep words whole.
+Font.registerHyphenationCallback((word) => [word]);
+
 /**
  * PDF export rendered with @react-pdf/renderer, faithful to the on-screen
  * preview for each of the 3 supported templates. The section *bodies* are
@@ -89,8 +93,16 @@ function fonts(config: TemplateConfig) {
   };
 }
 
+// Mirrors FONT_SCALE_MAP / LINE_SPACING_MAP in template-helpers so the export
+// honours the same global font-size and line-spacing controls as the preview.
+const FONT_SCALE: Record<string, number> = { small: 0.85, medium: 1, large: 1.15 };
+const LINE_HEIGHT: Record<string, number> = { compact: 1.2, normal: 1.4, relaxed: 1.6 };
+
 function buildStyles(config: TemplateConfig, variant: Variant) {
   const f = fonts(config);
+  const scale = FONT_SCALE[config.fontSize] ?? 1;
+  const sz = (n: number) => Math.round(n * scale * 100) / 100;
+  const lh = LINE_HEIGHT[config.lineSpacing] ?? 1.4;
   const ink = config.primaryColor || "#1b2230";
   const accent = config.accentColor || "#a3585c";
 
@@ -107,8 +119,8 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
       paddingVertical: 72,
       paddingHorizontal: 72,
       fontFamily: f.body,
-      fontSize: 9,
-      lineHeight: 1.4,
+      fontSize: sz(9),
+      lineHeight: lh,
       color: "#000000",
     },
     // header (classic / modern)
@@ -132,19 +144,20 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
       borderBottomColor: "#000000",
     },
     contactRight: { alignItems: "flex-end" },
-    contactRightLine: { fontSize: 7.5, color: SUB, lineHeight: 1.5 },
+    contactRightLine: { fontSize: sz(7.5), color: SUB, lineHeight: 1.5 },
     photo: { width: 42, height: 42, borderRadius: 21, objectFit: "cover", marginRight: 9 },
-    // Classic: photo pinned left, name + contact centred across full width.
+    // Classic: photo beside a centred name/contact column (mirrors Ats001's
+    // `flex items-center justify-center` header — never overlaps the name).
     headerCenter: { marginBottom: 9 },
-    headerNameRow: { position: "relative", minHeight: 42, justifyContent: "center" },
-    photoAbs: { position: "absolute", left: 0, top: 0, width: 42, height: 42, borderRadius: 21, objectFit: "cover" },
+    headerCenterRow: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
+    headerCenterCol: { flexShrink: 1, alignItems: "center" },
     headerCol: { flexGrow: 1 },
     minimalLeft: { flexDirection: "row", alignItems: "center", flexGrow: 1, flexShrink: 1, flexBasis: 0, marginRight: 12 },
     nameFlex: { flexShrink: 1 },
     name: {
       fontFamily: f.headerBold,
       color: ink,
-      fontSize: variant === "modern" ? 20 : variant === "minimal" ? 15 : 18,
+      fontSize: sz(variant === "modern" ? 20 : variant === "minimal" ? 15 : 18),
       lineHeight: 1.2,
       textTransform: variant === "modern" ? "none" : "uppercase",
       letterSpacing: variant === "modern" ? 0 : 0.9,
@@ -152,27 +165,25 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
       marginBottom: 4,
     },
     contact: {
-      fontSize: 7.5,
+      fontSize: sz(7.5),
       color: CONTACT,
       lineHeight: 1.35,
       textAlign: variant === "classic" ? "center" : "left",
     },
-    // Classic: cap the contact width so a long line wraps tidily onto two
-    // centred rows (matches the live preview) instead of one full-width line.
-    contactClassic: { maxWidth: 300, alignSelf: "center" },
     headline: {
       fontFamily: f.bodyBold,
-      fontSize: 9,
-      color: ink,
+      fontSize: sz(9),
+      color: variant === "modern" ? accent : ink,
       marginTop: 2,
       textAlign: variant === "classic" ? "center" : "left",
-      textTransform: variant === "modern" ? "none" : "uppercase",
+      textTransform: variant === "minimal" ? "uppercase" : "none",
+      letterSpacing: variant === "minimal" ? 0.6 : 0,
     },
     // sections
     sectionTitle: {
       fontFamily: f.headerBold,
       color: ink,
-      fontSize: variant === "minimal" ? 9 : 10.5,
+      fontSize: sz(variant === "minimal" ? 9 : 10.5),
       textTransform: "uppercase",
       letterSpacing: variant === "minimal" ? 1.2 : 0.3,
       paddingBottom: 3,
@@ -182,7 +193,7 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
       ...titleBorder,
     },
     summary: {
-      fontSize: 9,
+      fontSize: sz(9),
       textAlign: variant === "classic" ? "justify" : "left",
       marginBottom: 2,
     },
@@ -193,7 +204,7 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
     },
     bold: { fontFamily: f.bodyBold },
     boldUpper: { fontFamily: f.bodyBold, textTransform: "uppercase" },
-    sub: { fontSize: 7.5, color: SUB },
+    sub: { fontSize: sz(7.5), color: SUB },
     itemBlock: { marginBottom: 9 },
     itemBlockSm: { marginBottom: 6 },
     bulletRow: { flexDirection: "row", marginTop: 1.5 },
@@ -429,15 +440,17 @@ function Header({
     );
   }
 
-  // Classic — photo + name on a centred row, contact centred below (clear of photo).
+  // Classic — photo beside a centred name/contact column, mirroring Ats001.
   return (
     <View style={styles.headerCenter}>
-      <View style={styles.headerNameRow}>
-        {info.photoUrl ? <Image style={styles.photoAbs} src={info.photoUrl} /> : null}
-        <Text style={styles.name}>{info.name}</Text>
+      <View style={styles.headerCenterRow}>
+        {info.photoUrl ? <Image style={styles.photo} src={info.photoUrl} /> : null}
+        <View style={styles.headerCenterCol}>
+          <Text style={styles.name}>{info.name}</Text>
+          <Text style={styles.contact}>{contactParts.join(" · ")}</Text>
+          {info.title ? <Text style={styles.headline}>{info.title}</Text> : null}
+        </View>
       </View>
-      <Text style={[styles.contact, styles.contactClassic]}>{contactParts.join(" · ")}</Text>
-      {info.title ? <Text style={styles.headline}>{info.title}</Text> : null}
     </View>
   );
 }

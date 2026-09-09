@@ -186,9 +186,9 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
   }
 
   const contactParts = [
+    info.address,
     info.email,
     info.phone,
-    info.address,
     info.linkedin,
     info.website,
     availabilityLabel(info),
@@ -198,7 +198,7 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
       new Paragraph({
         children: [
           new TextRun({
-            text: contactParts.join("  |  "),
+            text: contactParts.join("  ·  "),
             size: styles.normalSize - 2,
             font: styles.fontFamily,
             color: "666666",
@@ -222,7 +222,7 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
             bold: true,
             size: styles.normalSize,
             font: styles.fontFamily,
-            allCaps: styles.variant !== "modern",
+            allCaps: styles.variant === "minimal",
           }),
         ],
         alignment: styles.headerAlign,
@@ -250,6 +250,9 @@ function renderSummary(summary: string | null, styles: DocxStyleConfig): Paragra
           })
       ),
       spacing: { before: 40, after: styles.spacing.after },
+      ...(styles.variant === "classic"
+        ? { alignment: AlignmentType.JUSTIFIED }
+        : {}),
     }),
   ];
 }
@@ -269,6 +272,7 @@ function renderWorkExperience(resume: ResumeData, styles: DocxStyleConfig): Para
             bold: true,
             size: styles.heading3Size,
             font: styles.fontFamily,
+            allCaps: styles.variant !== "modern",
           }),
         ],
         spacing: { before: 100, after: 20 },
