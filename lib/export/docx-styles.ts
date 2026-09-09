@@ -1,14 +1,27 @@
 import type { TemplateConfig } from "@/types/resume";
 import { AlignmentType } from "docx";
 import { getTemplateFont } from "@/lib/template-fonts";
+import { tintOnWhite } from "@/components/templates/template-helpers";
+
+const VARIANT_BY_ID: Record<string, DocxVariant> = {
+  "ats-002": "accent",
+  "ats-003": "bold",
+  "ats-004": "timeline",
+  "ats-005": "executive",
+  "ats-007": "editorial",
+};
 
 function variantFor(templateId?: string): DocxVariant {
-  if (templateId === "ats-002") return "modern";
-  if (templateId === "ats-007") return "minimal";
-  return "classic";
+  return (templateId && VARIANT_BY_ID[templateId]) || "classic";
 }
 
-export type DocxVariant = "classic" | "modern" | "minimal";
+export type DocxVariant =
+  | "classic"
+  | "accent"
+  | "bold"
+  | "timeline"
+  | "executive"
+  | "editorial";
 
 export interface DocxStyleConfig {
   titleSize: number;       // half-points
@@ -22,6 +35,12 @@ export interface DocxStyleConfig {
   variant: DocxVariant;
   headerAlign: (typeof AlignmentType)[keyof typeof AlignmentType];
   sectionRuleColor: string; // hex without # — colour of the rule under headings
+  sectionRuleSize: number;  // eighths of a point, as docx borders are measured
+  headingShading: string | null;   // hex without # — Accent's tinted band
+  headingUsesAccent: boolean;      // heading text in the accent colour
+  headerRuleSize: number;   // rule under the header block (0 = none)
+  headerRuleColor: string;  // hex without #
+  railed: boolean;          // entries/labels sit in a borderless two-column table
   bulletStyle: TemplateConfig["bulletStyle"]; // disc, dash, arrow, square, none
   spacing: {
     after: number;         // twips (1/20th of a point)
@@ -56,9 +75,36 @@ export function getDocxStyles(config: TemplateConfig, templateId?: string): Docx
   const variant = variantFor(templateId);
   const accentColor = hexColorClean(config.accentColor || "#a3585c");
 
-  // Heading rule colour mirrors each template's on-screen identity
+  const ink = hexColorClean(config.primaryColor || "#1b2230");
+
+  // Heading rule mirrors each template's on-screen identity.
+  // Accent bands its headings instead, so it draws no rule.
   const sectionRuleColor =
-    variant === "modern" ? accentColor : variant === "minimal" ? "cccccc" : "000000";
+    variant === "bold" ? accentColor : variant === "executive" ? "d5d9df" : "000000";
+  const sectionRuleSize =
+    variant === "accent" || variant === "timeline" || variant === "editorial"
+      ? 0
+      : variant === "bold"
+      ? 18
+      : variant === "executive"
+      ? 4
+      : 6;
+
+  // Rule beneath the header block. Executive draws it as a double rule.
+  const headerRuleSize =
+    variant === "bold"
+      ? 24
+      : variant === "accent"
+      ? 18
+      : variant === "editorial"
+      ? 12
+      : variant === "executive"
+      ? 6
+      : variant === "timeline"
+      ? 4
+      : 0;
+  const headerRuleColor =
+    variant === "accent" ? accentColor : variant === "timeline" ? "d5d9df" : ink;
 
   return {
     titleSize: normalSize + 16,    // +8pt for title
@@ -70,10 +116,16 @@ export function getDocxStyles(config: TemplateConfig, templateId?: string): Docx
       config.headerFontFamily || config.fontFamily
     ).docxFamily,
     accentColor,
-    headingTextColor: hexColorClean(config.primaryColor || "#1b2230"),
+    headingTextColor: ink,
     variant,
     headerAlign: variant === "classic" ? AlignmentType.CENTER : AlignmentType.LEFT,
     sectionRuleColor,
+    sectionRuleSize,
+    headingShading: variant === "accent" ? hexColorClean(tintOnWhite(`#${accentColor}`, 0.1)) : null,
+    headingUsesAccent: variant === "accent",
+    headerRuleSize,
+    headerRuleColor,
+    railed: variant === "timeline" || variant === "editorial",
     bulletStyle: config.bulletStyle || "disc",
     spacing: {
       after: 120,

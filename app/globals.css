@@ -396,6 +396,7 @@
 }
 
 /* CV Template — scale all text sizes proportionally via --cv-scale */
+.cv-template-root .text-3xl { font-size: calc(1.875rem * var(--cv-scale, 1)) !important; }
 .cv-template-root .text-2xl { font-size: calc(1.5rem * var(--cv-scale, 1)) !important; }
 .cv-template-root .text-xl { font-size: calc(1.25rem * var(--cv-scale, 1)) !important; }
 .cv-template-root .text-lg { font-size: calc(1.125rem * var(--cv-scale, 1)) !important; }

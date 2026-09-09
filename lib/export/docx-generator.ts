@@ -9,6 +9,11 @@ import {
   Packer,
   BorderStyle,
   LevelFormat,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  TableLayoutType,
 } from "docx";
 import type { ResumeData, TemplateConfig, CustomSection, Education, Skill, Certification, Language, Project, Award, Reference, SectionId } from "@/types/resume";
 import { normalizeWorkExperience, availabilityLabel, formatGpa } from "@/types/resume";
@@ -141,6 +146,41 @@ function bulletParagraph(text: string, styles: DocxStyleConfig): Paragraph {
   });
 }
 
+/** Content width of an A4 page inside the 1" margins, in twips. */
+const CONTENT_WIDTH = 11906 - 1440 * 2;
+const RAIL_LABEL_WIDTH = 1500;
+const HAIRLINE = "d5d9df";
+
+const NO_BORDERS = {
+  top: { style: BorderStyle.NONE, size: 0, color: "auto" },
+  bottom: { style: BorderStyle.NONE, size: 0, color: "auto" },
+  left: { style: BorderStyle.NONE, size: 0, color: "auto" },
+  right: { style: BorderStyle.NONE, size: 0, color: "auto" },
+  insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "auto" },
+  insideVertical: { style: BorderStyle.NONE, size: 0, color: "auto" },
+} as const;
+
+const SECTION_LABELS: Record<string, string> = {
+  workExperience: "Work Experience",
+  education: "Education",
+  skills: "Skills",
+  certifications: "Certifications",
+  languages: "Languages",
+  projects: "Projects",
+  awards: "Awards",
+  references: "References",
+};
+
+/** Classic keeps the summary as an unlabelled lead paragraph. */
+const SUMMARY_LABEL: Record<DocxStyleConfig["variant"], string | null> = {
+  classic: null,
+  accent: "Professional Summary",
+  bold: "Professional Summary",
+  timeline: "Summary",
+  executive: "Professional Summary",
+  editorial: "Summary",
+};
+
 function sectionHeading(title: string, styles: DocxStyleConfig): Paragraph {
   return new Paragraph({
     children: [
@@ -149,41 +189,124 @@ function sectionHeading(title: string, styles: DocxStyleConfig): Paragraph {
         bold: true,
         size: styles.heading2Size,
         font: styles.headerFontFamily,
-        color: styles.headingTextColor,
+        color: styles.headingUsesAccent ? styles.accentColor : styles.headingTextColor,
       }),
     ],
     heading: HeadingLevel.HEADING_2,
     spacing: { before: 200, after: 80 },
+    ...(styles.headingShading ? { shading: { fill: styles.headingShading } } : {}),
     border: {
-      bottom: { style: BorderStyle.SINGLE, size: styles.variant === "modern" ? 12 : 6, color: styles.sectionRuleColor },
+      ...(styles.sectionRuleSize > 0
+        ? {
+            bottom: {
+              style: BorderStyle.SINGLE,
+              size: styles.sectionRuleSize,
+              color: styles.sectionRuleColor,
+            },
+          }
+        : {}),
+      // Accent bands its heading; Timeline marks it with a short accent bar.
+      ...(styles.variant === "accent" || styles.variant === "timeline"
+        ? { left: { style: BorderStyle.SINGLE, size: 18, color: styles.accentColor, space: 6 } }
+        : {}),
     },
   });
 }
 
+/** A borderless two-column row: a narrow left gutter beside the content. */
+function railTable(gutter: Paragraph[], body: Paragraph[], hairline: boolean): Table {
+  return new Table({
+    width: { size: CONTENT_WIDTH, type: WidthType.DXA },
+    layout: TableLayoutType.FIXED,
+    borders: NO_BORDERS,
+    columnWidths: [RAIL_LABEL_WIDTH, CONTENT_WIDTH - RAIL_LABEL_WIDTH],
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: RAIL_LABEL_WIDTH, type: WidthType.DXA },
+            borders: NO_BORDERS,
+            margins: { top: 0, bottom: 0, left: 0, right: 120 },
+            children: gutter.length ? gutter : [new Paragraph({ text: "" })],
+          }),
+          new TableCell({
+            width: { size: CONTENT_WIDTH - RAIL_LABEL_WIDTH, type: WidthType.DXA },
+            borders: hairline
+              ? { ...NO_BORDERS, left: { style: BorderStyle.SINGLE, size: 4, color: HAIRLINE } }
+              : NO_BORDERS,
+            margins: { top: 0, bottom: 0, left: hairline ? 140 : 0, right: 0 },
+            children: body.length ? body : [new Paragraph({ text: "" })],
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+/** The date text that sits in the Timeline variant's left column. */
+function railDate(text: string, styles: DocxStyleConfig): Paragraph[] {
+  if (!text) return [];
+  return [
+    new Paragraph({
+      children: [
+        new TextRun({
+          text,
+          size: styles.normalSize - 2,
+          font: styles.fontFamily,
+          color: "666666",
+        }),
+      ],
+      spacing: { after: 0 },
+    }),
+  ];
+}
+
+/** Places a section: a heading above the body, or a label in a left gutter. */
+function wrapSection(
+  label: string | null,
+  body: (Paragraph | Table)[],
+  styles: DocxStyleConfig
+): (Paragraph | Table)[] {
+  if (!body.length) return [];
+  if (label === null) return body;
+
+  if (styles.variant === "editorial") {
+    // A gutter table can only hold paragraphs, so a body that already
+    // contains a table falls back to a plain heading.
+    const paragraphs = body.filter((b): b is Paragraph => b instanceof Paragraph);
+    if (paragraphs.length === body.length) {
+      return [
+        railTable(
+          [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: label.toUpperCase(),
+                  bold: true,
+                  size: styles.normalSize - 4,
+                  font: styles.headerFontFamily,
+                  color: styles.accentColor,
+                }),
+              ],
+              spacing: { after: 0 },
+            }),
+          ],
+          paragraphs,
+          true
+        ),
+        new Paragraph({ text: "", spacing: { after: 60 } }),
+      ];
+    }
+  }
+
+  return [sectionHeading(label, styles), ...body];
+}
+
+type HeaderPart = "name" | "title" | "contact";
+
 function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
   const info = resume.personalInfo;
   if (!info) return [];
-
-  const paragraphs: Paragraph[] = [];
-
-  if (info.name) {
-    paragraphs.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: info.name,
-            bold: true,
-            size: styles.titleSize,
-            font: styles.headerFontFamily,
-            color: styles.headingTextColor,
-            allCaps: styles.variant !== "modern",
-          }),
-        ],
-        alignment: styles.headerAlign,
-        spacing: { after: 60 },
-      })
-    );
-  }
 
   const contactParts = [
     info.address,
@@ -193,45 +316,90 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
     info.website,
     availabilityLabel(info),
   ].filter(Boolean);
-  if (contactParts.length > 0) {
-    paragraphs.push(
-      new Paragraph({
+
+  // Classic keeps its historical name / contact / role order; the newer
+  // templates put the role directly under the name, as the preview does.
+  const order: HeaderPart[] =
+    styles.variant === "classic" ? ["name", "contact", "title"] : ["name", "title", "contact"];
+  const present = order.filter((k) =>
+    k === "name" ? !!info.name : k === "title" ? !!info.title : contactParts.length > 0
+  );
+
+  // Bold leaves the contact line below the rule; the rest close the block with it.
+  const ruleAfter: HeaderPart | null =
+    styles.headerRuleSize === 0
+      ? null
+      : styles.variant === "bold"
+      ? present.filter((k) => k !== "contact").pop() ?? null
+      : present[present.length - 1] ?? null;
+
+  const rule = (k: HeaderPart) =>
+    k === ruleAfter
+      ? {
+          border: {
+            bottom: {
+              style: styles.variant === "executive" ? BorderStyle.DOUBLE : BorderStyle.SINGLE,
+              size: styles.headerRuleSize,
+              color: styles.headerRuleColor,
+            },
+          },
+        }
+      : {};
+
+  return present.map((k) => {
+    if (k === "name") {
+      return new Paragraph({
         children: [
           new TextRun({
-            text: contactParts.join("  ·  "),
-            size: styles.normalSize - 2,
-            font: styles.fontFamily,
-            color: "666666",
+            text: info.name,
+            bold: true,
+            size: styles.titleSize,
+            font: styles.headerFontFamily,
+            color: styles.headingTextColor,
+            allCaps: styles.variant === "classic" || styles.variant === "bold",
           }),
         ],
         alignment: styles.headerAlign,
-        spacing: { after: 120 },
-        ...(styles.variant === "minimal"
-          ? { border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: "000000" } } }
-          : {}),
-      })
-    );
-  }
-
-  if (info.title) {
-    paragraphs.push(
-      new Paragraph({
+        spacing: { after: 60 },
+        ...rule(k),
+      });
+    }
+    if (k === "title") {
+      return new Paragraph({
         children: [
           new TextRun({
             text: info.title,
             bold: true,
-            size: styles.normalSize,
+            size: styles.variant === "bold" ? styles.normalSize - 2 : styles.normalSize,
             font: styles.fontFamily,
-            allCaps: styles.variant === "minimal",
+            color:
+              styles.variant === "accent"
+                ? styles.accentColor
+                : styles.variant === "classic"
+                ? undefined
+                : "555555",
+            allCaps: styles.variant === "bold",
           }),
         ],
         alignment: styles.headerAlign,
         spacing: { after: 120 },
-      })
-    );
-  }
-
-  return paragraphs;
+        ...rule(k),
+      });
+    }
+    return new Paragraph({
+      children: [
+        new TextRun({
+          text: contactParts.join("  ·  "),
+          size: styles.normalSize - 2,
+          font: styles.fontFamily,
+          color: "666666",
+        }),
+      ],
+      alignment: styles.headerAlign,
+      spacing: { after: 120 },
+      ...rule(k),
+    });
+  });
 }
 
 function renderSummary(summary: string | null, styles: DocxStyleConfig): Paragraph[] {
@@ -257,100 +425,220 @@ function renderSummary(summary: string | null, styles: DocxStyleConfig): Paragra
   ];
 }
 
-function renderWorkExperience(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
-  if (!resume.workExperience.length) return [];
-
-  const paragraphs: Paragraph[] = [sectionHeading("Work Experience", styles)];
-
-  for (const exp of resume.workExperience) {
-    // Company header (positions carry their own date ranges below).
-    paragraphs.push(
+/** Bullets (or a single plain paragraph) for one position / project. */
+function bulletBlock(
+  bullets: string[] | undefined,
+  description: string | undefined,
+  styles: DocxStyleConfig,
+  spacingAfter = 60
+): Paragraph[] {
+  const { lines, isSingleParagraph } = resolveBulletLines(bullets, description);
+  if (isSingleParagraph && lines.length === 1) {
+    return [
       new Paragraph({
         children: [
-          new TextRun({
-            text: exp.company || "",
-            bold: true,
-            size: styles.heading3Size,
-            font: styles.fontFamily,
-            allCaps: styles.variant !== "modern",
-          }),
+          new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily }),
         ],
-        spacing: { before: 100, after: 20 },
-      })
-    );
+        spacing: { after: spacingAfter },
+      }),
+    ];
+  }
+  return lines.map((line) => bulletParagraph(line, styles));
+}
+
+/** Classic keeps its em dash; the newer templates use an en dash. */
+function range(
+  styles: DocxStyleConfig,
+  start?: string,
+  end?: string,
+  isCurrent?: boolean
+): string {
+  const s = start ? formatDate(start) : "";
+  const e = isCurrent ? "Present" : end ? formatDate(end) : "";
+  const sep = styles.variant === "classic" ? " — " : " – ";
+  return s && e ? s + sep + e : s || e;
+}
+
+function renderWorkExperience(
+  resume: ResumeData,
+  styles: DocxStyleConfig
+): (Paragraph | Table)[] {
+  if (!resume.workExperience.length) return [];
+  const out: (Paragraph | Table)[] = [];
+
+  for (const exp of resume.workExperience) {
+    // Timeline — one gutter row per position, date on the left.
+    if (styles.variant === "timeline") {
+      for (const pos of exp.positions) {
+        out.push(
+          railTable(
+            railDate(range(styles, pos.startDate, pos.endDate, pos.isCurrent), styles),
+            [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: pos.title || "",
+                    bold: true,
+                    size: styles.normalSize,
+                    font: styles.fontFamily,
+                  }),
+                ],
+                spacing: { after: 0 },
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: exp.company || "",
+                    size: styles.normalSize - 2,
+                    font: styles.fontFamily,
+                    color: "666666",
+                  }),
+                ],
+                spacing: { after: 40 },
+              }),
+              ...bulletBlock(pos.bullets, pos.description, styles, 20),
+            ],
+            true
+          )
+        );
+        out.push(new Paragraph({ text: "", spacing: { after: 40 } }));
+      }
+      continue;
+    }
+
+    // Editorial leads with the role; the rest lead with the company.
+    if (styles.variant !== "editorial") {
+      out.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: exp.company || "",
+              bold: true,
+              size: styles.heading3Size,
+              font: styles.fontFamily,
+              allCaps: styles.variant === "classic",
+            }),
+          ],
+          spacing: { before: 100, after: 20 },
+        })
+      );
+    }
 
     for (const pos of exp.positions) {
-      const dateStr = `${formatDate(pos.startDate)} — ${pos.isCurrent ? "Present" : formatDate(pos.endDate)}`;
-
-      paragraphs.push(
+      out.push(
         new Paragraph({
           children: [
             new TextRun({
               text: pos.title || "",
               bold: true,
-              italics: true,
+              italics: styles.variant === "classic",
               size: styles.normalSize,
               font: styles.fontFamily,
             }),
             new TextRun({
-              text: "\t" + dateStr,
+              text: "\t" + range(styles, pos.startDate, pos.endDate, pos.isCurrent),
               size: styles.normalSize,
               font: styles.fontFamily,
               color: "666666",
             }),
           ],
           tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-          spacing: { after: 40 },
+          spacing: { before: styles.variant === "editorial" ? 100 : 0, after: 40 },
         })
       );
 
-      const { lines, isSingleParagraph } = resolveBulletLines(pos.bullets, pos.description);
-
-      if (isSingleParagraph && lines.length === 1) {
-        // Single-line plain description
-        paragraphs.push(
+      if (styles.variant === "editorial") {
+        out.push(
           new Paragraph({
             children: [
               new TextRun({
-                text: lines[0],
-                size: styles.normalSize,
+                text: exp.company || "",
+                size: styles.normalSize - 2,
                 font: styles.fontFamily,
+                color: "666666",
               }),
             ],
-            spacing: { after: 60 },
+            spacing: { after: 40 },
           })
         );
-      } else {
-        for (const line of lines) {
-          paragraphs.push(bulletParagraph(line, styles));
-        }
       }
+
+      out.push(...bulletBlock(pos.bullets, pos.description, styles));
     }
   }
 
-  return paragraphs;
+  return out;
 }
 
-function renderEducation(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
+function renderEducation(resume: ResumeData, styles: DocxStyleConfig): (Paragraph | Table)[] {
   if (!resume.education.length) return [];
-
-  const paragraphs: Paragraph[] = [sectionHeading("Education", styles)];
+  const out: (Paragraph | Table)[] = [];
 
   for (const edu of resume.education) {
-    const dateStr = `${formatDate(edu.startDate)} — ${formatDate(edu.endDate)}`;
+    const when = range(styles, edu.startDate, edu.endDate);
     const degreeLine = `${edu.degree}${edu.fieldOfStudy ? ` in ${edu.fieldOfStudy}` : ""}`;
+    const gpaRuns = edu.gpa
+      ? [
+          new TextRun({
+            text: `  |  GPA: ${formatGpa(edu)}`,
+            size: styles.normalSize,
+            font: styles.fontFamily,
+            color: "666666",
+          }),
+        ]
+      : [];
 
-    paragraphs.push(
+    if (styles.variant === "timeline") {
+      out.push(
+        railTable(
+          railDate(when, styles),
+          [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: degreeLine,
+                  bold: true,
+                  size: styles.normalSize,
+                  font: styles.fontFamily,
+                }),
+              ],
+              spacing: { after: 0 },
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: edu.institution || "",
+                  size: styles.normalSize - 2,
+                  font: styles.fontFamily,
+                  color: "666666",
+                }),
+                ...gpaRuns,
+              ],
+              spacing: { after: 20 },
+            }),
+          ],
+          true
+        )
+      );
+      out.push(new Paragraph({ text: "", spacing: { after: 40 } }));
+      continue;
+    }
+
+    // Editorial leads with the degree; the rest lead with the institution.
+    const lead = styles.variant === "editorial" ? degreeLine : edu.institution || "";
+    const follow = styles.variant === "editorial" ? edu.institution || "" : degreeLine;
+
+    out.push(
       new Paragraph({
         children: [
           new TextRun({
-            text: edu.institution || "",
+            text: lead,
             bold: true,
             size: styles.heading3Size,
             font: styles.fontFamily,
           }),
           new TextRun({
-            text: "\t" + dateStr,
+            text: "\t" + when,
             size: styles.normalSize,
             font: styles.fontFamily,
             color: "666666",
@@ -361,36 +649,28 @@ function renderEducation(resume: ResumeData, styles: DocxStyleConfig): Paragraph
       })
     );
 
-    paragraphs.push(
+    out.push(
       new Paragraph({
         children: [
           new TextRun({
-            text: degreeLine,
+            text: follow,
             size: styles.normalSize,
             font: styles.fontFamily,
+            color: styles.variant === "editorial" ? "666666" : undefined,
           }),
-          ...(edu.gpa
-            ? [
-                new TextRun({
-                  text: `  |  GPA: ${formatGpa(edu)}`,
-                  size: styles.normalSize,
-                  font: styles.fontFamily,
-                  color: "666666",
-                }),
-              ]
-            : []),
+          ...gpaRuns,
         ],
         spacing: { after: 60 },
       })
     );
   }
 
-  return paragraphs;
+  return out;
 }
 
 function renderSkills(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
   if (!resume.skills.length) return [];
-  const paragraphs: Paragraph[] = [sectionHeading("Skills", styles)];
+  const paragraphs: Paragraph[] = [];
   const fmt = (s: { name: string; level?: string }) =>
     s.level ? `${s.name} (${s.level})` : s.name;
 
@@ -429,7 +709,7 @@ function renderSkills(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] 
 
 function renderCertifications(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
   if (!resume.certifications.length) return [];
-  const paragraphs: Paragraph[] = [sectionHeading("Certifications", styles)];
+  const paragraphs: Paragraph[] = [];
   for (const c of resume.certifications) {
     paragraphs.push(
       new Paragraph({
@@ -458,7 +738,6 @@ function renderCertifications(resume: ResumeData, styles: DocxStyleConfig): Para
 function renderLanguages(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
   if (!resume.languages.length) return [];
   return [
-    sectionHeading("Languages", styles),
     new Paragraph({
       children: [
         new TextRun({
@@ -472,54 +751,83 @@ function renderLanguages(resume: ResumeData, styles: DocxStyleConfig): Paragraph
   ];
 }
 
-function renderProjects(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
+function renderProjects(resume: ResumeData, styles: DocxStyleConfig): (Paragraph | Table)[] {
   if (!resume.projects.length) return [];
-  const paragraphs: Paragraph[] = [sectionHeading("Projects", styles)];
+  const out: (Paragraph | Table)[] = [];
+
   for (const p of resume.projects) {
-    const dateStr = (p.startDate || p.endDate || p.isCurrent)
-      ? `${p.startDate ? formatDate(p.startDate) : ""}${p.startDate && (p.endDate || p.isCurrent) ? " — " : ""}${p.isCurrent ? "Present" : p.endDate ? formatDate(p.endDate) : ""}`
-      : "";
-    paragraphs.push(
+    const when = range(styles, p.startDate, p.endDate, p.isCurrent);
+    const body: Paragraph[] = [
+      ...(p.description ? bulletBlock(undefined, p.description, styles, 20) : []),
+      ...(p.technologies?.length
+        ? [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `Technologies: ${p.technologies.join(", ")}`,
+                  size: styles.normalSize,
+                  font: styles.fontFamily,
+                  color: "666666",
+                }),
+              ],
+              spacing: { after: 40 },
+            }),
+          ]
+        : []),
+    ];
+
+    if (styles.variant === "timeline") {
+      out.push(
+        railTable(
+          railDate(when, styles),
+          [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: p.name,
+                  bold: true,
+                  size: styles.normalSize,
+                  font: styles.fontFamily,
+                }),
+              ],
+              spacing: { after: 20 },
+            }),
+            ...body,
+          ],
+          true
+        )
+      );
+      out.push(new Paragraph({ text: "", spacing: { after: 40 } }));
+      continue;
+    }
+
+    out.push(
       new Paragraph({
         children: [
           new TextRun({ text: p.name, bold: true, size: styles.normalSize, font: styles.fontFamily }),
-          ...(dateStr ? [new TextRun({ text: "\t" + dateStr, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
+          ...(when
+            ? [
+                new TextRun({
+                  text: "\t" + when,
+                  size: styles.normalSize,
+                  font: styles.fontFamily,
+                  color: "666666",
+                }),
+              ]
+            : []),
         ],
-        ...(dateStr ? { tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }] } : {}),
+        ...(when ? { tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }] } : {}),
         spacing: { before: 60, after: 20 },
       })
     );
-    if (p.description) {
-      const { lines, isSingleParagraph } = resolveBulletLines(undefined, p.description);
-
-      if (isSingleParagraph && lines.length === 1) {
-        paragraphs.push(
-          new Paragraph({
-            children: [new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily })],
-            spacing: { after: 20 },
-          })
-        );
-      } else {
-        for (const line of lines) {
-          paragraphs.push(bulletParagraph(line, styles));
-        }
-      }
-    }
-    if (p.technologies?.length) {
-      paragraphs.push(
-        new Paragraph({
-          children: [new TextRun({ text: `Technologies: ${p.technologies.join(", ")}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })],
-          spacing: { after: 40 },
-        })
-      );
-    }
+    out.push(...body);
   }
-  return paragraphs;
+  return out;
 }
 
 function renderAwards(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
   if (!resume.awards.length) return [];
-  const paragraphs: Paragraph[] = [sectionHeading("Awards", styles)];
+  const paragraphs: Paragraph[] = [];
   for (const a of resume.awards) {
     paragraphs.push(
       new Paragraph({
@@ -553,7 +861,7 @@ function renderAwards(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] 
 
 function renderReferences(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
   if (!resume.references.length) return [];
-  const paragraphs: Paragraph[] = [sectionHeading("References", styles)];
+  const paragraphs: Paragraph[] = [];
   for (const r of resume.references) {
     // Line 1: Name (bold) + position + company
     const line1Parts: TextRun[] = [
@@ -593,35 +901,26 @@ function renderReferences(resume: ResumeData, styles: DocxStyleConfig): Paragrap
   return paragraphs;
 }
 
-function renderCustomSections(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
+function renderCustomSections(
+  resume: ResumeData,
+  styles: DocxStyleConfig
+): (Paragraph | Table)[] {
   // Only render plain custom sections (exclude cloned sections which have basedOn set)
   const plainSections = resume.customSections.filter((s) => !s.basedOn);
   if (!plainSections.length) return [];
-  const paragraphs: Paragraph[] = [];
+  const out: (Paragraph | Table)[] = [];
   for (const s of plainSections) {
-    paragraphs.push(sectionHeading(s.title, styles));
-
-    const { lines, isSingleParagraph } = resolveBulletLines(undefined, s.content);
-    if (isSingleParagraph && lines.length === 1) {
-      paragraphs.push(
-        new Paragraph({
-          children: [new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily })],
-          spacing: { after: styles.spacing.after },
-        })
-      );
-    } else {
-      for (const line of lines) {
-        paragraphs.push(bulletParagraph(line, styles));
-      }
-    }
+    out.push(
+      ...wrapSection(s.title, bulletBlock(undefined, s.content, styles, styles.spacing.after), styles)
+    );
   }
-  return paragraphs;
+  return out;
 }
 
 /** Render a cloned section with structured items to DOCX paragraphs */
 function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Paragraph[] {
   if (!cs.basedOn || !cs.items?.length) return [];
-  const paragraphs: Paragraph[] = [sectionHeading(cs.title || "Untitled", styles)];
+  const paragraphs: Paragraph[] = [];
 
   switch (cs.basedOn) {
     case "workExperience":
@@ -783,7 +1082,10 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
   return paragraphs;
 }
 
-const SECTION_RENDERERS: Record<string, (resume: ResumeData, styles: DocxStyleConfig) => Paragraph[]> = {
+const SECTION_RENDERERS: Record<
+  string,
+  (resume: ResumeData, styles: DocxStyleConfig) => (Paragraph | Table)[]
+> = {
   personalInfo: renderPersonalInfo,
   summary: (r, s) => renderSummary(r.summary, s),
   workExperience: renderWorkExperience,
@@ -823,7 +1125,7 @@ export async function generateDocx(
     return cached;
   };
 
-  const children: Paragraph[] = [];
+  const children: (Paragraph | Table)[] = [];
 
   for (const sectionId of sectionOrder) {
     if (hiddenSections.has(sectionId)) continue;
@@ -833,34 +1135,40 @@ export async function generateDocx(
       const entryId = getCustomSectionEntryId(sectionId);
       const cs = resume.customSections.find((s) => s.id === entryId);
       if (cs) {
+        const label = cs.title || "Untitled";
         // Cloned section with structured items
         if (cs.basedOn && cs.items?.length) {
-          children.push(...renderClonedDocxSection(cs, styles));
+          children.push(...wrapSection(label, renderClonedDocxSection(cs, styles), styles));
         } else if (cs.content) {
-          // Plain custom section
-          children.push(sectionHeading(cs.title || "Untitled", styles));
-          const { lines, isSingleParagraph } = resolveBulletLines(undefined, cs.content);
-          if (isSingleParagraph && lines.length === 1) {
-            children.push(
-              new Paragraph({
-                children: [new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily })],
-                spacing: { after: styles.spacing.after },
-              })
-            );
-          } else {
-            for (const line of lines) {
-              children.push(bulletParagraph(line, styles));
-            }
-          }
+          children.push(
+            ...wrapSection(
+              label,
+              bulletBlock(undefined, cs.content, styles, styles.spacing.after),
+              styles
+            )
+          );
         }
       }
       continue;
     }
 
     const renderer = SECTION_RENDERERS[sectionId];
-    if (renderer) {
-      children.push(...renderer(resume, stylesFor(sectionId)));
-    }
+    if (!renderer) continue;
+
+    const sectionStyles = stylesFor(sectionId);
+    const body = renderer(resume, sectionStyles);
+    if (!body.length) continue;
+
+    // personalInfo is the header and customSections labels its own entries;
+    // everything else gets a heading (or gutter label) from wrapSection.
+    const label =
+      sectionId === "personalInfo" || sectionId === "customSections"
+        ? null
+        : sectionId === "summary"
+        ? SUMMARY_LABEL[sectionStyles.variant]
+        : SECTION_LABELS[sectionId] || sectionId;
+
+    children.push(...wrapSection(label, body, sectionStyles));
   }
 
   const doc = new Document({

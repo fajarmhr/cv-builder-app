@@ -54,6 +54,22 @@ export function SectionFrame({
   return <div style={style}>{children}</div>;
 }
 
+/**
+ * Accent colour blended toward white — the Accent template's heading band.
+ * Returns a solid hex rather than rgba so the PDF and DOCX exports, which
+ * both need an opaque fill, land on exactly the same colour as the preview.
+ */
+export function tintOnWhite(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const n = parseInt(full, 16);
+  if (full.length !== 6 || Number.isNaN(n)) return "#ffffff";
+  const mix = (c: number) => Math.round(255 + (c - 255) * alpha);
+  return `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255]
+    .map((c) => mix(c).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
 export function formatDate(d: string): string {
   if (!d) return "";
   const [y, m] = d.split("-");

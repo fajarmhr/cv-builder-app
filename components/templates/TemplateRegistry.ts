@@ -15,17 +15,25 @@ export interface TemplateMeta {
 }
 
 /**
- * Top 3 ATS templates curated for international recruiters.
+ * Six ATS templates curated for international recruiters.
  * All single-column, photo-free, reverse-chronological — the safest, most
  * widely-accepted formats across US / UK / EU / CA / AU hiring systems.
- *   ats-001 Classic  — the strongest all-rounder (left as the reference)
- *   ats-002 Modern   — left-aligned name with an accent section rule
- *   ats-007 Minimal  — name left / contact right, hairline dividers
+ *   ats-001 Classic   — the strongest all-rounder (left as the reference)
+ *   ats-002 Accent    — tinted heading bands, accent rule under the header
+ *   ats-003 Bold      — oversized name, heavy rule, short accent underlines
+ *   ats-004 Timeline  — dates in a left column beside each entry
+ *   ats-005 Executive — serif headings, double rule, hairline dividers
+ *   ats-007 Editorial — section labels in a left gutter
+ * ats-006 is deliberately unused: 002 and 007 keep their ids so résumés
+ * already saved against them don't fall back to Classic.
  */
 const TEMPLATE_MAP: Record<string, ComponentType<TemplateProps>> = {
   "ats-001": lazy(() => import("./ats/Ats001Template").then((m) => ({ default: m.Ats001Template }))),
-  "ats-002": lazy(() => import("./ats/Ats002Template").then((m) => ({ default: m.Ats002Template }))),
-  "ats-007": lazy(() => import("./ats/Ats007Template").then((m) => ({ default: m.Ats007Template }))),
+  "ats-002": lazy(() => import("./ats/AtsVariants").then((m) => ({ default: m.AccentTemplate }))),
+  "ats-003": lazy(() => import("./ats/AtsVariants").then((m) => ({ default: m.BoldTemplate }))),
+  "ats-004": lazy(() => import("./ats/AtsVariants").then((m) => ({ default: m.TimelineTemplate }))),
+  "ats-005": lazy(() => import("./ats/AtsVariants").then((m) => ({ default: m.ExecutiveTemplate }))),
+  "ats-007": lazy(() => import("./ats/AtsVariants").then((m) => ({ default: m.EditorialTemplate }))),
 };
 
 // Eagerly loaded fallback (also catches any legacy templateId still in the DB)
@@ -41,16 +49,37 @@ const TEMPLATE_META: TemplateMeta[] = [
   },
   {
     id: "ats-002",
-    name: "Modern",
+    name: "Accent",
     category: "ATS",
-    description: "Left-aligned name with an accent section rule. Clean and contemporary.",
+    description: "Section headings in a tinted band. Contemporary and corporate.",
+    layoutType: "single-column",
+  },
+  {
+    id: "ats-003",
+    name: "Bold",
+    category: "ATS",
+    description: "Oversized name over a heavy rule, headings underlined in accent.",
+    layoutType: "single-column",
+  },
+  {
+    id: "ats-004",
+    name: "Timeline",
+    category: "ATS",
+    description: "Dates in a left column beside each entry. Easy to scan quickly.",
+    layoutType: "single-column",
+  },
+  {
+    id: "ats-005",
+    name: "Executive",
+    category: "ATS",
+    description: "Serif headings and a double rule. Formal, for senior roles.",
     layoutType: "single-column",
   },
   {
     id: "ats-007",
-    name: "Minimal",
+    name: "Editorial",
     category: "ATS",
-    description: "Name left, contact right, hairline dividers. Understated and editorial.",
+    description: "Section labels in a left gutter. Understated and editorial.",
     layoutType: "single-column",
   },
 ];
