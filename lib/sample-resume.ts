@@ -84,12 +84,12 @@ export const SAMPLE_RESUME: ResumeData = {
     },
   ],
   skills: [
-    { id: "s1", name: "Leadership", level: "expert" },
-    { id: "s2", name: "Project Management", level: "expert" },
-    { id: "s3", name: "Data Analysis", level: "advanced" },
-    { id: "s4", name: "Communication", level: "advanced" },
-    { id: "s5", name: "Strategy", level: "intermediate" },
-    { id: "s6", name: "Stakeholder Management", level: "intermediate" },
+    { id: "s1", name: "Leadership", level: "Expert" },
+    { id: "s2", name: "Project Management", level: "Expert" },
+    { id: "s3", name: "Data Analysis", level: "Advanced" },
+    { id: "s4", name: "Communication", level: "Advanced" },
+    { id: "s5", name: "Strategy", level: "Intermediate" },
+    { id: "s6", name: "Stakeholder Management", level: "Intermediate" },
   ],
   certifications: [
     { id: "c1", name: "Certified Professional", issuer: "Example Institute", date: "2022-01", credentialId: "" },
