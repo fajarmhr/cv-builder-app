@@ -169,14 +169,26 @@ function EducationEntry({
               />
             </div>
           </div>
-          <div>
-            <Label className="text-xs">GPA (optional)</Label>
-            <Input
-              className="h-9 text-sm mt-1 max-w-[120px]"
-              placeholder="3.8"
-              defaultValue={entry.gpa}
-              onChange={(e) => handleFieldChange("gpa", e.target.value)}
-            />
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <Label className="text-xs">GPA (optional)</Label>
+              <Input
+                className="h-9 text-sm mt-1 max-w-[120px]"
+                placeholder="3.8"
+                defaultValue={entry.gpa}
+                onChange={(e) => handleFieldChange("gpa", e.target.value)}
+              />
+            </div>
+            <span className="h-9 flex items-center text-sm text-muted-foreground">/</span>
+            <div>
+              <Label className="text-xs">Out of (optional)</Label>
+              <Input
+                className="h-9 text-sm mt-1 max-w-[120px]"
+                placeholder="4.00"
+                defaultValue={entry.gpaMax || ""}
+                onChange={(e) => handleFieldChange("gpaMax", e.target.value)}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -199,6 +211,7 @@ export function EducationForm() {
       startDate: "",
       endDate: "",
       gpa: "",
+      gpaMax: "",
     } as Education);
   }
 

@@ -43,6 +43,7 @@ const SECTION_FIELDS: Record<string, FieldDef[]> = {
     { key: "degree", label: "Degree", half: true },
     { key: "fieldOfStudy", label: "Field of Study", half: true },
     { key: "gpa", label: "GPA", half: true },
+    { key: "gpaMax", label: "GPA Max", half: true },
     { key: "startDate", label: "Start Date", type: "month", half: true },
     { key: "endDate", label: "End Date", type: "month", half: true },
   ],

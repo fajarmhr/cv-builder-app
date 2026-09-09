@@ -9,7 +9,7 @@ import {
   renderToBuffer,
 } from "@react-pdf/renderer";
 import type { ResumeData, TemplateConfig, CustomSection } from "@/types/resume";
-import { normalizeWorkExperience, availabilityLabel } from "@/types/resume";
+import { normalizeWorkExperience, availabilityLabel, formatGpa } from "@/types/resume";
 import {
   formatDate,
   getVisibleSections,
@@ -307,7 +307,7 @@ function renderEducationItems(
         {edu.degree}
         {edu.fieldOfStudy ? `, ${edu.fieldOfStudy}` : ""}
       </Text>
-      {edu.gpa ? <Text>GPA: {edu.gpa}</Text> : null}
+      {edu.gpa ? <Text>GPA: {formatGpa(edu)}</Text> : null}
     </View>
   ));
 }

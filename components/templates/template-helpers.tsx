@@ -12,7 +12,7 @@ import type {
   Award,
   Reference,
 } from "@/types/resume";
-import { isCustomSectionId, getCustomSectionEntryId, normalizeWorkExperience } from "@/types/resume";
+import { isCustomSectionId, getCustomSectionEntryId, normalizeWorkExperience, formatGpa } from "@/types/resume";
 import type { ReactNode, CSSProperties } from "react";
 
 // Per-section font-size scale (shared with the global font-size control).
@@ -333,7 +333,7 @@ export function RenderClonedSection({
               <p className={textSize}>
                 {edu.degree}{edu.fieldOfStudy ? `, ${edu.fieldOfStudy}` : ""}
               </p>
-              {edu.gpa && <p className={textSize}>GPA: {edu.gpa}</p>}
+              {edu.gpa && <p className={textSize}>GPA: {formatGpa(edu)}</p>}
             </div>
           ))}
         </div>

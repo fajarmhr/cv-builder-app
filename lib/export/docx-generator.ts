@@ -11,7 +11,7 @@ import {
   LevelFormat,
 } from "docx";
 import type { ResumeData, TemplateConfig, CustomSection, Education, Skill, Certification, Language, Project, Award, Reference } from "@/types/resume";
-import { normalizeWorkExperience, availabilityLabel } from "@/types/resume";
+import { normalizeWorkExperience, availabilityLabel, formatGpa } from "@/types/resume";
 import { isCustomSectionId, getCustomSectionEntryId } from "@/types/resume";
 import { getDocxStyles, type DocxStyleConfig } from "./docx-styles";
 import { groupSkills } from "@/components/templates/template-helpers";
@@ -368,7 +368,7 @@ function renderEducation(resume: ResumeData, styles: DocxStyleConfig): Paragraph
           ...(edu.gpa
             ? [
                 new TextRun({
-                  text: `  |  GPA: ${edu.gpa}`,
+                  text: `  |  GPA: ${formatGpa(edu)}`,
                   size: styles.normalSize,
                   font: styles.fontFamily,
                   color: "666666",
@@ -670,7 +670,7 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
           new Paragraph({
             children: [
               new TextRun({ text: degreeLine, size: styles.normalSize, font: styles.fontFamily }),
-              ...(edu.gpa ? [new TextRun({ text: `  |  GPA: ${edu.gpa}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
+              ...(edu.gpa ? [new TextRun({ text: `  |  GPA: ${formatGpa(edu)}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
             ],
             spacing: { after: 60 },
           })

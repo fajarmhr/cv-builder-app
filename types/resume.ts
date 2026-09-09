@@ -50,6 +50,19 @@ export interface Education {
   startDate: string;
   endDate: string;
   gpa: string;
+  /** Optional scale the GPA is out of, e.g. "4.00" -> "GPA: 3.32 / 4.00" */
+  gpaMax?: string;
+}
+
+/**
+ * GPA as displayed after the "GPA:" label — "3.32 / 4.00" when a maximum
+ * is set, plain "3.32" otherwise, "" when there is no GPA at all.
+ */
+export function formatGpa(edu: { gpa?: string; gpaMax?: string }): string {
+  const gpa = (edu.gpa || "").trim();
+  if (!gpa) return "";
+  const max = (edu.gpaMax || "").trim();
+  return max ? gpa + " / " + max : gpa;
 }
 
 export interface Skill {

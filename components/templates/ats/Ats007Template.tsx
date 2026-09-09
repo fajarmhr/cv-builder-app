@@ -2,7 +2,7 @@
 
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
-import { availabilityLabel } from "@/types/resume";
+import { availabilityLabel, formatGpa } from "@/types/resume";
 import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection, SectionFrame } from "../template-helpers";
 
 /**
@@ -101,7 +101,7 @@ export function Ats007Template({ resume, config }: TemplateProps) {
                 </span>
               </div>
               <p className="text-[10px]">{edu.institution}</p>
-              {edu.gpa && <p className="text-[9px]" style={{ color: "#555" }}>GPA: {edu.gpa}</p>}
+              {edu.gpa && <p className="text-[9px]" style={{ color: "#555" }}>GPA: {formatGpa(edu)}</p>}
             </div>
           ))}
         </div>
