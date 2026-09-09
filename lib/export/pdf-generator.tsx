@@ -167,11 +167,12 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
       lineHeight: lh,
       color: "#000000",
     },
-    // header — left-aligned block carrying the variant's rule beneath
+    // header — left-aligned block carrying the variant's rule beneath.
+    // No alignItems: classic uses headerCenter instead, and "flex-start" here
+    // would size the row to its content, collapsing the name column.
     header: {
       marginBottom: 9,
-      paddingBottom: variant === "classic" ? 0 : 5,
-      alignItems: variant === "classic" ? "center" : "flex-start",
+      paddingBottom: 5,
       ...headerRule,
     },
     headerRow: {
@@ -192,13 +193,16 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
     execRuleThick: { marginTop: 5, borderBottomWidth: 1.25, borderBottomColor: ink },
     execRuleThin: { marginTop: 1.5, borderBottomWidth: 0.75, borderBottomColor: ink, marginBottom: 9 },
     contactSpaced: { fontSize: sz(7.5), color: SUB, lineHeight: 1.35, marginTop: 3 },
-    photo: { width: 42, height: 42, borderRadius: 21, objectFit: "cover", marginRight: 9 },
+    photo: { width: 42, height: 42, borderRadius: 21, objectFit: "cover", marginRight: 9, flexShrink: 0 },
     // Classic: photo beside a centred name/contact column (mirrors Ats001's
     // `flex items-center justify-center` header — never overlaps the name).
     headerCenter: { marginBottom: 9 },
     headerCenterRow: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
-    headerCenterCol: { flexShrink: 1, alignItems: "center" },
-    headerCol: { flexGrow: 1, flexShrink: 1 },
+    // flexBasis 0 keeps the name column inside the page: without it Yoga sizes
+    // the column to its widest text and a long name pushes the photo off the
+    // left margin and the name past the right one.
+    headerCenterCol: { flexGrow: 1, flexShrink: 1, flexBasis: 0, alignItems: "center" },
+    headerCol: { flexGrow: 1, flexShrink: 1, flexBasis: 0 },
     name: {
       fontFamily: f.headerBold,
       color: ink,
@@ -280,14 +284,17 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
     // Editorial — section label in a left gutter
     railSection: { flexDirection: "row", marginBottom: 10 },
     railLabel: {
-      width: 62,
+      // Wide enough for "CERTIFICATIONS", which is one unbreakable word, and
+      // scaled so it still fits at the large font-size setting.
+      width: sz(84),
       flexShrink: 0,
       fontFamily: f.headerBold,
       color: accent,
       fontSize: sz(7),
       textTransform: "uppercase",
-      letterSpacing: 1.1,
+      letterSpacing: 0.7,
       paddingTop: 1,
+      paddingRight: 4,
     },
     // flexBasis 0 is required: without it the column sizes to its content and
     // the nested bullet rows collapse to one word per line.
@@ -383,6 +390,13 @@ function Bullets({
 
 type Styles = ReturnType<typeof buildStyles>;
 
+/**
+ * Space (in points) that must remain below a heading for it to stay on the
+ * page. Less than this and react-pdf moves the heading to the next page with
+ * its content, instead of stranding it at the foot of the previous one.
+ */
+const KEEP_WITH_NEXT = 64;
+
 function SectionTitle({
   children,
   variant,
@@ -392,53 +406,69 @@ function SectionTitle({
   variant: Variant;
   styles: Styles;
 }) {
-  if (variant === "accent") {
-    return (
+  const inner =
+    variant === "accent" ? (
       <View style={styles.titleBand}>
         <Text style={styles.titleBandText}>{children}</Text>
       </View>
-    );
-  }
-  if (variant === "bold") {
-    return (
+    ) : variant === "bold" ? (
       <View style={styles.titleUnderlineRow}>
         <Text style={styles.titleUnderlineText}>{children}</Text>
       </View>
-    );
-  }
-  if (variant === "timeline") {
-    return (
+    ) : variant === "timeline" ? (
       <View style={styles.titleTickRow}>
         <View style={styles.titleTick} />
         <Text style={styles.titleTickText}>{children}</Text>
       </View>
+    ) : (
+      <Text style={styles.sectionTitle}>{children}</Text>
     );
-  }
-  return <Text style={styles.sectionTitle}>{children}</Text>;
+
+  // The break hints live on a plain wrapper: react-pdf mislays a <Text> that
+  // carries wrap={false}, and the following block ends up overlapping itself.
+  // wrap={false} keeps a heading's rule or accent tick from being left behind
+  // on the previous page when only the text moves.
+  return (
+    <View minPresenceAhead={KEEP_WITH_NEXT} wrap={false}>
+      {inner}
+    </View>
+  );
 }
 
 /** Wraps one section: a heading above the body, or a left-gutter label. */
+/**
+ * Work history is the one section that legitimately outgrows a page. Keeping
+ * it atomic would make react-pdf clip it, so it alone may break between
+ * entries; every other section moves to the next page whole.
+ */
+const BREAKABLE_SECTIONS = new Set(["workExperience"]);
+
 function Section({
   label,
   variant,
   styles,
+  atomic = true,
   children,
 }: {
   label: string;
   variant: Variant;
   styles: Styles;
+  atomic?: boolean;
   children: React.ReactNode;
 }) {
   if (variant === "editorial") {
+    // The gutter is a flex row, and react-pdf overlaps its columns when one
+    // breaks across a page, so the whole section moves to the next page
+    // instead. That is also what "break between sections" asks for.
     return (
-      <View style={styles.railSection}>
+      <View style={styles.railSection} minPresenceAhead={KEEP_WITH_NEXT} wrap={false}>
         <Text style={styles.railLabel}>{label.toUpperCase()}</Text>
         <View style={styles.railBody}>{children}</View>
       </View>
     );
   }
   return (
-    <View>
+    <View wrap={!atomic}>
       <SectionTitle variant={variant} styles={styles}>
         {label}
       </SectionTitle>
@@ -466,7 +496,7 @@ function renderWorkItems(
     return items.map((exp, i) => (
       <View key={exp.id || i}>
         {exp.positions.map((pos, pi) => (
-          <View key={pos.id || pi} style={styles.tlRow}>
+          <View key={pos.id || pi} style={styles.tlRow} wrap={false}>
             <Text style={styles.tlWhen}>
               {range(variant, pos.startDate, pos.endDate, pos.isCurrent)}
             </Text>
@@ -486,7 +516,7 @@ function renderWorkItems(
     return items.map((exp, i) => (
       <View key={exp.id || i} style={styles.itemBlock}>
         {exp.positions.map((pos, pi) => (
-          <View key={pos.id || pi} style={styles.mt0}>
+          <View key={pos.id || pi} style={styles.mt0} wrap={false}>
             <View style={styles.rowBetween}>
               <Text style={styles.bold}>{pos.title}</Text>
               <Text style={styles.sub}>
@@ -503,9 +533,9 @@ function renderWorkItems(
 
   return items.map((exp, i) => (
     <View key={exp.id || i} style={styles.itemBlock}>
-      <Text style={variant === "classic" ? styles.boldUpper : styles.bold}>{exp.company}</Text>
+      <Text style={variant === "classic" ? styles.boldUpper : styles.bold} minPresenceAhead={KEEP_WITH_NEXT}>{exp.company}</Text>
       {exp.positions.map((pos, pi) => (
-        <View key={pos.id || pi} style={styles.mt0}>
+        <View key={pos.id || pi} style={styles.mt0} wrap={false}>
           <View style={styles.rowBetween}>
             <Text style={styles.bold}>{pos.title}</Text>
             <Text style={styles.sub}>
@@ -536,7 +566,7 @@ function renderEducationItems(
 
     if (variant === "timeline") {
       return (
-        <View key={edu.id || i} style={styles.tlRow}>
+        <View key={edu.id || i} style={styles.tlRow} wrap={false}>
           <Text style={styles.tlWhen}>{when}</Text>
           <View style={styles.tlBody}>
             <Text style={styles.bold}>{degree}</Text>
@@ -551,7 +581,7 @@ function renderEducationItems(
     const lead = variant === "editorial" ? degree : edu.institution;
     const follow = variant === "editorial" ? edu.institution : degree;
     return (
-      <View key={edu.id || i} style={styles.itemBlockSm}>
+      <View key={edu.id || i} style={styles.itemBlockSm} wrap={false}>
         <View style={styles.rowBetween}>
           <Text style={variant === "classic" ? styles.boldUpper : styles.bold}>{lead}</Text>
           <Text style={styles.sub}>{when}</Text>
@@ -618,7 +648,7 @@ function renderProjectItems(
 
     if (variant === "timeline") {
       return (
-        <View key={p.id || i} style={styles.tlRow}>
+        <View key={p.id || i} style={styles.tlRow} wrap={false}>
           <Text style={styles.tlWhen}>{when}</Text>
           <View style={styles.tlBody}>
             <Text style={styles.bold}>{p.name}</Text>
@@ -629,7 +659,7 @@ function renderProjectItems(
     }
 
     return (
-      <View key={p.id || i} style={styles.itemBlockSm}>
+      <View key={p.id || i} style={styles.itemBlockSm} wrap={false}>
         <View style={styles.rowBetween}>
           <Text style={styles.bold}>{p.name}</Text>
           {when ? <Text style={styles.sub}>{when}</Text> : null}
@@ -789,7 +819,7 @@ function ResumePdfDocument({
       hasContent(resume, "certifications") ? (
         <View key="cert">
           {resume.certifications.map((c, i) => (
-            <View key={c.id || i} style={styles.paraSm}>
+            <View key={c.id || i} style={styles.paraSm} wrap={false}>
               <Text>
                 <Text style={styles.bold}>{c.name}</Text>
                 {c.issuer ? ` — ${c.issuer}` : ""}
@@ -885,7 +915,13 @@ function ResumePdfDocument({
       }
     }
     return (
-      <Section key={cs.id} label={cs.title} variant={variant} styles={styles}>
+      <Section
+        key={cs.id}
+        label={cs.title}
+        variant={variant}
+        styles={styles}
+        atomic={!BREAKABLE_SECTIONS.has(cs.basedOn ?? "")}
+      >
         {body}
       </Section>
     );
@@ -916,7 +952,12 @@ function ResumePdfDocument({
             label === null ? (
               body
             ) : (
-              <Section label={label} variant={variant} styles={sectionStyles}>
+              <Section
+                label={label}
+                variant={variant}
+                styles={sectionStyles}
+                atomic={!BREAKABLE_SECTIONS.has(s)}
+              >
                 {body}
               </Section>
             );
