@@ -193,6 +193,7 @@ function sectionHeading(title: string, styles: DocxStyleConfig): Paragraph {
       }),
     ],
     heading: HeadingLevel.HEADING_2,
+    // Headings keep their own leading, as they do on screen.
     spacing: { before: 200, after: 80 },
     ...(styles.headingShading ? { shading: { fill: styles.headingShading } } : {}),
     border: {
@@ -256,7 +257,7 @@ function railDate(text: string, styles: DocxStyleConfig): Paragraph[] {
           color: "666666",
         }),
       ],
-      spacing: { after: 0 },
+      spacing: { line: styles.spacing.line, after: 0 },
     }),
   ];
 }
@@ -288,6 +289,7 @@ function wrapSection(
                   color: styles.accentColor,
                 }),
               ],
+              // The gutter label is a heading; it keeps its own leading.
               spacing: { after: 0 },
             }),
           ],
@@ -360,6 +362,7 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
           }),
         ],
         alignment: styles.headerAlign,
+        // The name keeps its own leading, as it does on screen.
         spacing: { after: 60 },
         ...rule(k),
       });
@@ -382,7 +385,7 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
           }),
         ],
         alignment: styles.headerAlign,
-        spacing: { after: 120 },
+        spacing: { line: styles.spacing.line, after: 120 },
         ...rule(k),
       });
     }
@@ -396,7 +399,7 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
         }),
       ],
       alignment: styles.headerAlign,
-      spacing: { after: 120 },
+      spacing: { line: styles.spacing.line, after: 120 },
       ...rule(k),
     });
   });
@@ -439,7 +442,7 @@ function bulletBlock(
         children: [
           new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily }),
         ],
-        spacing: { after: spacingAfter },
+        spacing: { line: styles.spacing.line, after: spacingAfter },
       }),
     ];
   }
@@ -483,7 +486,7 @@ function renderWorkExperience(
                     font: styles.fontFamily,
                   }),
                 ],
-                spacing: { after: 0 },
+                spacing: { line: styles.spacing.line, after: 0 },
               }),
               new Paragraph({
                 children: [
@@ -494,7 +497,7 @@ function renderWorkExperience(
                     color: "666666",
                   }),
                 ],
-                spacing: { after: 40 },
+                spacing: { line: styles.spacing.line, after: 40 },
               }),
               ...bulletBlock(pos.bullets, pos.description, styles, 20),
             ],
@@ -519,7 +522,7 @@ function renderWorkExperience(
               allCaps: styles.variant === "classic",
             }),
           ],
-          spacing: { before: 100, after: 20 },
+          spacing: { line: styles.spacing.line, before: 100, after: 20 },
         })
       );
     }
@@ -543,7 +546,7 @@ function renderWorkExperience(
             }),
           ],
           tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-          spacing: { before: styles.variant === "editorial" ? 100 : 0, after: 40 },
+          spacing: { line: styles.spacing.line, before: styles.variant === "editorial" ? 100 : 0, after: 40 },
         })
       );
 
@@ -558,7 +561,7 @@ function renderWorkExperience(
                 color: "666666",
               }),
             ],
-            spacing: { after: 40 },
+            spacing: { line: styles.spacing.line, after: 40 },
           })
         );
       }
@@ -602,7 +605,7 @@ function renderEducation(resume: ResumeData, styles: DocxStyleConfig): (Paragrap
                   font: styles.fontFamily,
                 }),
               ],
-              spacing: { after: 0 },
+              spacing: { line: styles.spacing.line, after: 0 },
             }),
             new Paragraph({
               children: [
@@ -614,7 +617,7 @@ function renderEducation(resume: ResumeData, styles: DocxStyleConfig): (Paragrap
                 }),
                 ...gpaRuns,
               ],
-              spacing: { after: 20 },
+              spacing: { line: styles.spacing.line, after: 20 },
             }),
           ],
           true
@@ -645,7 +648,7 @@ function renderEducation(resume: ResumeData, styles: DocxStyleConfig): (Paragrap
           }),
         ],
         tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-        spacing: { before: 80, after: 20 },
+        spacing: { line: styles.spacing.line, before: 80, after: 20 },
       })
     );
 
@@ -660,7 +663,7 @@ function renderEducation(resume: ResumeData, styles: DocxStyleConfig): (Paragrap
           }),
           ...gpaRuns,
         ],
-        spacing: { after: 60 },
+        spacing: { line: styles.spacing.line, after: 60 },
       })
     );
   }
@@ -697,7 +700,7 @@ function renderSkills(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] 
           font: styles.fontFamily,
         })
       );
-      paragraphs.push(new Paragraph({ children, spacing: { after: 40 } }));
+      paragraphs.push(new Paragraph({ children, spacing: { line: styles.spacing.line, after: 40 } }));
     }
   } else {
     for (const s of resume.skills) {
@@ -718,7 +721,7 @@ function renderCertifications(resume: ResumeData, styles: DocxStyleConfig): Para
           ...(c.issuer ? [new TextRun({ text: ` — ${c.issuer}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
           ...(c.date ? [new TextRun({ text: ` (${formatDate(c.date)})`, size: styles.normalSize, font: styles.fontFamily, color: "888888" })] : []),
         ],
-        spacing: { after: c.credentialId ? 20 : 40 },
+        spacing: { line: styles.spacing.line, after: c.credentialId ? 20 : 40 },
       })
     );
     if (c.credentialId) {
@@ -727,7 +730,7 @@ function renderCertifications(resume: ResumeData, styles: DocxStyleConfig): Para
           children: [
             new TextRun({ text: `Credential ID: ${c.credentialId}`, size: styles.normalSize - 2, font: styles.fontFamily, color: "666666" }),
           ],
-          spacing: { after: 40 },
+          spacing: { line: styles.spacing.line, after: 40 },
         })
       );
     }
@@ -746,7 +749,7 @@ function renderLanguages(resume: ResumeData, styles: DocxStyleConfig): Paragraph
           font: styles.fontFamily,
         }),
       ],
-      spacing: { after: styles.spacing.after },
+      spacing: { line: styles.spacing.line, after: styles.spacing.after },
     }),
   ];
 }
@@ -770,7 +773,7 @@ function renderProjects(resume: ResumeData, styles: DocxStyleConfig): (Paragraph
                   color: "666666",
                 }),
               ],
-              spacing: { after: 40 },
+              spacing: { line: styles.spacing.line, after: 40 },
             }),
           ]
         : []),
@@ -790,7 +793,7 @@ function renderProjects(resume: ResumeData, styles: DocxStyleConfig): (Paragraph
                   font: styles.fontFamily,
                 }),
               ],
-              spacing: { after: 20 },
+              spacing: { line: styles.spacing.line, after: 20 },
             }),
             ...body,
           ],
@@ -817,7 +820,7 @@ function renderProjects(resume: ResumeData, styles: DocxStyleConfig): (Paragraph
             : []),
         ],
         ...(when ? { tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }] } : {}),
-        spacing: { before: 60, after: 20 },
+        spacing: { line: styles.spacing.line, before: 60, after: 20 },
       })
     );
     out.push(...body);
@@ -836,7 +839,7 @@ function renderAwards(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] 
           ...(a.issuer ? [new TextRun({ text: ` — ${a.issuer}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
           ...(a.date ? [new TextRun({ text: ` (${formatDate(a.date)})`, size: styles.normalSize, font: styles.fontFamily, color: "888888" })] : []),
         ],
-        spacing: { after: a.description ? 20 : 40 },
+        spacing: { line: styles.spacing.line, after: a.description ? 20 : 40 },
       })
     );
 
@@ -846,7 +849,7 @@ function renderAwards(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] 
         paragraphs.push(
           new Paragraph({
             children: [new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily })],
-            spacing: { after: 40 },
+            spacing: { line: styles.spacing.line, after: 40 },
           })
         );
       } else {
@@ -876,7 +879,7 @@ function renderReferences(resume: ResumeData, styles: DocxStyleConfig): Paragrap
     paragraphs.push(
       new Paragraph({
         children: line1Parts,
-        spacing: { after: 20 },
+        spacing: { line: styles.spacing.line, after: 20 },
       })
     );
 
@@ -893,7 +896,7 @@ function renderReferences(resume: ResumeData, styles: DocxStyleConfig): Paragrap
               color: "666666",
             }),
           ],
-          spacing: { after: 60 },
+          spacing: { line: styles.spacing.line, after: 60 },
         })
       );
     }
@@ -930,7 +933,7 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
             children: [
               new TextRun({ text: exp.company || "", bold: true, size: styles.heading3Size, font: styles.fontFamily }),
             ],
-            spacing: { before: 100, after: 20 },
+            spacing: { line: styles.spacing.line, before: 100, after: 20 },
           })
         );
         for (const pos of exp.positions) {
@@ -942,12 +945,12 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
                 new TextRun({ text: "\t" + dateStr, size: styles.normalSize, font: styles.fontFamily, color: "666666" }),
               ],
               tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-              spacing: { after: 40 },
+              spacing: { line: styles.spacing.line, after: 40 },
             })
           );
           const { lines, isSingleParagraph } = resolveBulletLines(pos.bullets, pos.description);
           if (isSingleParagraph && lines.length === 1) {
-            paragraphs.push(new Paragraph({ children: [new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily })], spacing: { after: 60 } }));
+            paragraphs.push(new Paragraph({ children: [new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily })], spacing: { line: styles.spacing.line, after: 60 } }));
           } else {
             for (const line of lines) paragraphs.push(bulletParagraph(line, styles));
           }
@@ -965,7 +968,7 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
               new TextRun({ text: "\t" + dateStr, size: styles.normalSize, font: styles.fontFamily, color: "666666" }),
             ],
             tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-            spacing: { before: 80, after: 20 },
+            spacing: { line: styles.spacing.line, before: 80, after: 20 },
           })
         );
         const degreeLine = `${edu.degree}${edu.fieldOfStudy ? ` in ${edu.fieldOfStudy}` : ""}`;
@@ -975,7 +978,7 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
               new TextRun({ text: degreeLine, size: styles.normalSize, font: styles.fontFamily }),
               ...(edu.gpa ? [new TextRun({ text: `  |  GPA: ${formatGpa(edu)}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
             ],
-            spacing: { after: 60 },
+            spacing: { line: styles.spacing.line, after: 60 },
           })
         );
       }
@@ -996,12 +999,12 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
             ...(c.issuer ? [new TextRun({ text: ` — ${c.issuer}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
             ...(c.date ? [new TextRun({ text: ` (${formatDate(c.date)})`, size: styles.normalSize, font: styles.fontFamily, color: "888888" })] : []),
           ],
-          spacing: { after: c.credentialId ? 20 : 40 },
+          spacing: { line: styles.spacing.line, after: c.credentialId ? 20 : 40 },
         }));
         if (c.credentialId) {
           paragraphs.push(new Paragraph({
             children: [new TextRun({ text: `Credential ID: ${c.credentialId}`, size: styles.normalSize - 2, font: styles.fontFamily, color: "666666" })],
-            spacing: { after: 40 },
+            spacing: { line: styles.spacing.line, after: 40 },
           }));
         }
       }
@@ -1013,7 +1016,7 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
           text: (cs.items as Language[]).map((l) => `${l.language}${l.proficiency ? ` (${l.proficiency})` : ""}`).join(", "),
           size: styles.normalSize, font: styles.fontFamily,
         })],
-        spacing: { after: styles.spacing.after },
+        spacing: { line: styles.spacing.line, after: styles.spacing.after },
       }));
       break;
 
@@ -1028,12 +1031,12 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
             ...(projDateStr ? [new TextRun({ text: "\t" + projDateStr, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
           ],
           ...(projDateStr ? { tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }] } : {}),
-          spacing: { before: 60, after: 20 },
+          spacing: { line: styles.spacing.line, before: 60, after: 20 },
         }));
         if (p.description) {
           const { lines, isSingleParagraph } = resolveBulletLines(undefined, p.description);
           if (isSingleParagraph && lines.length === 1) {
-            paragraphs.push(new Paragraph({ children: [new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily })], spacing: { after: 20 } }));
+            paragraphs.push(new Paragraph({ children: [new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily })], spacing: { line: styles.spacing.line, after: 20 } }));
           } else {
             for (const line of lines) paragraphs.push(bulletParagraph(line, styles));
           }
@@ -1041,7 +1044,7 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
         if (p.technologies?.length) {
           paragraphs.push(new Paragraph({
             children: [new TextRun({ text: `Technologies: ${p.technologies.join(", ")}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })],
-            spacing: { after: 40 },
+            spacing: { line: styles.spacing.line, after: 40 },
           }));
         }
       }
@@ -1055,7 +1058,7 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
             ...(a.issuer ? [new TextRun({ text: ` — ${a.issuer}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
             ...(a.date ? [new TextRun({ text: ` (${formatDate(a.date)})`, size: styles.normalSize, font: styles.fontFamily, color: "888888" })] : []),
           ],
-          spacing: { after: 40 },
+          spacing: { line: styles.spacing.line, after: 40 },
         }));
       }
       break;
@@ -1067,12 +1070,12 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
         ];
         if (r.position) refLine1.push(new TextRun({ text: `, ${r.position}`, size: styles.normalSize, font: styles.fontFamily }));
         if (r.company) refLine1.push(new TextRun({ text: ` at ${r.company}`, size: styles.normalSize, font: styles.fontFamily }));
-        paragraphs.push(new Paragraph({ children: refLine1, spacing: { after: 20 } }));
+        paragraphs.push(new Paragraph({ children: refLine1, spacing: { line: styles.spacing.line, after: 20 } }));
         const refContact = [r.email, r.phone].filter(Boolean);
         if (refContact.length > 0) {
           paragraphs.push(new Paragraph({
             children: [new TextRun({ text: refContact.join(" | "), size: styles.normalSize - 2, font: styles.fontFamily, color: "666666" })],
-            spacing: { after: 60 },
+            spacing: { line: styles.spacing.line, after: 60 },
           }));
         }
       }

@@ -559,7 +559,12 @@ export function VariantTemplate({
         }
 
         if (s === "personalInfo") {
-          return <Header key={s} info={info} variant={variant} accent={accent} />;
+          // Inside SectionFrame so the header honours its per-section overrides.
+          return (
+            <SectionFrame key={s} sectionId={s} config={config}>
+              <Header info={info} variant={variant} accent={accent} />
+            </SectionFrame>
+          );
         }
 
         // customSections carries a heading per entry, so it skips <Section>.
