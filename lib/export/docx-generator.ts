@@ -674,8 +674,8 @@ function renderEducation(resume: ResumeData, styles: DocxStyleConfig): (Paragrap
 function renderSkills(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
   if (!resume.skills.length) return [];
   const paragraphs: Paragraph[] = [];
-  const fmt = (s: { name: string; level?: string }) =>
-    s.level ? `${s.name} (${s.level})` : s.name;
+  const fmt = (s: { name: string; level?: string; levelEnabled?: boolean }) =>
+    s.level && s.levelEnabled !== false ? `${s.name} (${s.level})` : s.name;
 
   const groups = groupSkills(resume.skills);
   const grouped = groups.length > 1 || (groups.length === 1 && !!groups[0].category);

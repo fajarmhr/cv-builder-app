@@ -203,9 +203,9 @@ function ProjectEntry({
             <Label className="text-xs">Technologies</Label>
             <div className="flex flex-wrap gap-1.5 mt-1 mb-2">
               {(entry.technologies || []).map((tech, ti) => (
-                <Badge key={ti} variant="secondary" className="text-xs gap-1">
-                  {tech}
-                  <button onClick={() => removeTech(ti)}>
+                <Badge key={ti} variant="secondary" className="max-w-full items-center gap-1 whitespace-normal text-xs">
+                  <span className="min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]">{tech}</span>
+                  <button className="shrink-0" onClick={() => removeTech(ti)}>
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>

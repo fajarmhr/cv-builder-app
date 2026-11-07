@@ -70,6 +70,7 @@ export interface Skill {
   name: string;
   level: string;
   category?: string;
+  levelEnabled?: boolean;
 }
 
 export interface Certification {

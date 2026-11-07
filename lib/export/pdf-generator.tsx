@@ -599,7 +599,7 @@ function renderSkillItems(
   styles: Styles
 ) {
   const fmt = (s: ResumeData["skills"][number]) =>
-    `${s.name}${s.level ? ` (${s.level})` : ""}`;
+    `${s.name}${s.level && s.levelEnabled !== false ? ` (${s.level})` : ""}`;
   const groups = groupSkills(items);
   const grouped = groups.length > 1 || (groups.length === 1 && !!groups[0].category);
 

@@ -161,7 +161,7 @@ export function SkillsBlock({
 }) {
   const groups = groupSkills(skills);
   const grouped = groups.length > 1 || (groups.length === 1 && !!groups[0].category);
-  const fmt = (s: Skill) => `${s.name}${s.level ? ` (${s.level})` : ""}`;
+  const fmt = (s: Skill) => `${s.name}${s.level && s.levelEnabled !== false ? ` (${s.level})` : ""}`;
 
   if (!grouped) {
     const marker = getBulletMarker(config.bulletStyle);
