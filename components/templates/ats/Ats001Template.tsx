@@ -2,7 +2,7 @@
 
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
-import { availabilityLabel, formatGpa, type SectionId } from "@/types/resume";
+import { availabilityLabel, formatGpa, type Project, type SectionId } from "@/types/resume";
 import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection, SectionFrame } from "../template-helpers";
 
 /**
@@ -22,6 +22,32 @@ export function Ats001Template({ resume, config }: TemplateProps) {
       </h2>
     </div>
   );
+
+  function renderProjects(projects: Project[], title: string) {
+    return projects.length ? (
+      <div key="proj">
+        <SectionTitle>{title}</SectionTitle>
+        {projects.map((p, i) => (
+          <div key={p.id || i} className="mb-2">
+            <div className="flex justify-between items-baseline">
+              <p className="font-bold text-xs">{p.name}</p>
+              {(p.startDate || p.endDate || p.isCurrent) && (
+                <span className="text-[10px]" style={{ color: "#555" }}>
+                  {p.startDate && formatDate(p.startDate)}
+                  {p.startDate && (p.endDate || p.isCurrent) && " \u2014 "}
+                  {p.isCurrent ? "Present" : p.endDate && formatDate(p.endDate)}
+                </span>
+              )}
+            </div>
+            <BulletList description={p.description} bulletStyle={config.bulletStyle} className="text-xs" />
+            {p.technologies?.length > 0 && (
+              <p className="text-[10px]" style={{ color: "#555" }}>Tech: {p.technologies.join(", ")}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    ) : null;
+  }
 
   const sectionRenderers: Record<string, () => React.ReactNode> = {
     personalInfo: () =>
@@ -137,30 +163,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
         </div>
       ) : null,
 
-    projects: () =>
-      hasContent(resume, "projects") ? (
-        <div key="proj">
-          <SectionTitle>{sectionTitle("projects", "Projects")}</SectionTitle>
-          {resume.projects.map((p, i) => (
-            <div key={p.id || i} className="mb-2">
-              <div className="flex justify-between items-baseline">
-                <p className="font-bold text-xs">{p.name}</p>
-                {(p.startDate || p.endDate || p.isCurrent) && (
-                  <span className="text-[10px]" style={{ color: "#555" }}>
-                    {p.startDate && formatDate(p.startDate)}
-                    {p.startDate && (p.endDate || p.isCurrent) && " \u2014 "}
-                    {p.isCurrent ? "Present" : p.endDate && formatDate(p.endDate)}
-                  </span>
-                )}
-              </div>
-              <BulletList description={p.description} bulletStyle={config.bulletStyle} className="text-xs" />
-              {p.technologies?.length > 0 && (
-                <p className="text-[10px]" style={{ color: "#555" }}>Tech: {p.technologies.join(", ")}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : null,
+    projects: () => renderProjects(resume.projects, sectionTitle("projects", "Projects")),
 
     awards: () =>
       hasContent(resume, "awards") ? (
@@ -209,6 +212,13 @@ export function Ats001Template({ resume, config }: TemplateProps) {
         if (isCustomSectionId(s)) {
           const cs = findCustomSection(resume, s);
           if (!cs) return null;
+          if (cs.basedOn === "projects" && cs.items?.length) {
+            return (
+              <SectionFrame key={s} sectionId="projects" config={config}>
+                {renderProjects(cs.items as Project[], cs.title)}
+              </SectionFrame>
+            );
+          }
           if (cs.basedOn && cs.items?.length) {
             return <RenderClonedSection key={s} cs={cs} config={config} SectionTitle={SectionTitle} />;
           }

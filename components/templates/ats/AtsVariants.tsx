@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
-import { availabilityLabel, formatGpa, type SectionId } from "@/types/resume";
+import { availabilityLabel, formatGpa, type Project, type SectionId } from "@/types/resume";
 import {
   formatDate,
   getVisibleSections,
@@ -304,6 +304,51 @@ export function VariantTemplate({
   const summaryLabel =
     variant === "timeline" || variant === "editorial" ? "Summary" : "Professional Summary";
 
+  function renderProjects(projects: Project[]) {
+    return projects.length ? (
+      <>
+        {projects.map((p, i) => {
+          const tech = p.technologies?.length ? (
+            <p className="text-[10px]" style={{ color: SUB }}>
+              Tech: {p.technologies.join(", ")}
+            </p>
+          ) : null;
+          const bullets = (
+            <BulletList
+              description={p.description}
+              bulletStyle={config.bulletStyle}
+              className="text-xs"
+            />
+          );
+
+          if (rail) {
+            return (
+              <Rail key={p.id || i} when={dateRange(p.startDate, p.endDate, p.isCurrent)}>
+                <p className="font-bold text-xs">{p.name}</p>
+                {bullets}
+                {tech}
+              </Rail>
+            );
+          }
+          return (
+            <div key={p.id || i} className="mb-2">
+              <div className="flex justify-between items-baseline gap-3">
+                <p className="font-bold text-xs">{p.name}</p>
+                {(p.startDate || p.endDate || p.isCurrent) && (
+                  <span className="text-[10px] shrink-0" style={{ color: SUB }}>
+                    {dateRange(p.startDate, p.endDate, p.isCurrent)}
+                  </span>
+                )}
+              </div>
+              {bullets}
+              {tech}
+            </div>
+          );
+        })}
+      </>
+    ) : null;
+  }
+
   const sectionBodies: Record<string, () => ReactNode> = {
     summary: () =>
       resume.summary ? (
@@ -447,49 +492,7 @@ export function VariantTemplate({
         </p>
       ) : null,
 
-    projects: () =>
-      hasContent(resume, "projects") ? (
-        <>
-          {resume.projects.map((p, i) => {
-            const tech = p.technologies?.length ? (
-              <p className="text-[10px]" style={{ color: SUB }}>
-                Tech: {p.technologies.join(", ")}
-              </p>
-            ) : null;
-            const bullets = (
-              <BulletList
-                description={p.description}
-                bulletStyle={config.bulletStyle}
-                className="text-xs"
-              />
-            );
-
-            if (rail) {
-              return (
-                <Rail key={p.id || i} when={dateRange(p.startDate, p.endDate, p.isCurrent)}>
-                  <p className="font-bold text-xs">{p.name}</p>
-                  {bullets}
-                  {tech}
-                </Rail>
-              );
-            }
-            return (
-              <div key={p.id || i} className="mb-2">
-                <div className="flex justify-between items-baseline gap-3">
-                  <p className="font-bold text-xs">{p.name}</p>
-                  {(p.startDate || p.endDate || p.isCurrent) && (
-                    <span className="text-[10px] shrink-0" style={{ color: SUB }}>
-                      {dateRange(p.startDate, p.endDate, p.isCurrent)}
-                    </span>
-                  )}
-                </div>
-                {bullets}
-                {tech}
-              </div>
-            );
-          })}
-        </>
-      ) : null,
+    projects: () => renderProjects(resume.projects),
 
     awards: () =>
       hasContent(resume, "awards") ? (
@@ -541,9 +544,11 @@ export function VariantTemplate({
           if (!cs) return null;
           if (cs.basedOn && cs.items?.length) {
             return (
-              <SectionFrame key={s} sectionId={s} config={config}>
+              <SectionFrame key={s} sectionId={cs.basedOn === "projects" ? "projects" : s} config={config}>
                 <Section label={cs.title} variant={variant} accent={accent}>
-                  <RenderClonedSection cs={cs} config={config} SectionTitle={NullTitle} />
+                  {cs.basedOn === "projects" ? renderProjects(cs.items as Project[]) : (
+                    <RenderClonedSection cs={cs} config={config} SectionTitle={NullTitle} />
+                  )}
                 </Section>
               </SectionFrame>
             );

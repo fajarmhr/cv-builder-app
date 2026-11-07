@@ -252,7 +252,7 @@ function SortableCustomCard({
   onToggleCollapse: () => void;
   onToggleVisibility: () => void;
 }) {
-  const { resume, removeCustomCard } = useResumeStore();
+  const { resume, removeCustomCard, duplicateSection } = useResumeStore();
 
   const customId = getCustomSectionEntryId(orderKey);
   const cs = resume?.customSections.find((s) => s.id === customId);
@@ -306,6 +306,17 @@ function SortableCustomCard({
           </button>
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
+          {cs.basedOn === "projects" && !!cs.items?.length && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full text-[var(--c-muted-2)] hover:bg-[var(--c-surface-2)] hover:text-[var(--c-primary)]"
+              onClick={() => duplicateSection("projects", customId)}
+              title="Duplicate section as new card"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"

@@ -754,11 +754,10 @@ function renderLanguages(resume: ResumeData, styles: DocxStyleConfig): Paragraph
   ];
 }
 
-function renderProjects(resume: ResumeData, styles: DocxStyleConfig): (Paragraph | Table)[] {
-  if (!resume.projects.length) return [];
+function renderProjects(projects: Project[], styles: DocxStyleConfig): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
 
-  for (const p of resume.projects) {
+  for (const p of projects) {
     const when = range(styles, p.startDate, p.endDate, p.isCurrent);
     const body: Paragraph[] = [
       ...(p.description ? bulletBlock(undefined, p.description, styles, 20) : []),
@@ -921,7 +920,7 @@ function renderCustomSections(
 }
 
 /** Render a cloned section with structured items to DOCX paragraphs */
-function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Paragraph[] {
+function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): (Paragraph | Table)[] {
   if (!cs.basedOn || !cs.items?.length) return [];
   const paragraphs: Paragraph[] = [];
 
@@ -1021,34 +1020,7 @@ function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): Pa
       break;
 
     case "projects":
-      for (const p of cs.items as Project[]) {
-        const projDateStr = (p.startDate || p.endDate || p.isCurrent)
-          ? `${p.startDate ? formatDate(p.startDate) : ""}${p.startDate && (p.endDate || p.isCurrent) ? " — " : ""}${p.isCurrent ? "Present" : p.endDate ? formatDate(p.endDate) : ""}`
-          : "";
-        paragraphs.push(new Paragraph({
-          children: [
-            new TextRun({ text: p.name, bold: true, size: styles.normalSize, font: styles.fontFamily }),
-            ...(projDateStr ? [new TextRun({ text: "\t" + projDateStr, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
-          ],
-          ...(projDateStr ? { tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }] } : {}),
-          spacing: { line: styles.spacing.line, before: 60, after: 20 },
-        }));
-        if (p.description) {
-          const { lines, isSingleParagraph } = resolveBulletLines(undefined, p.description);
-          if (isSingleParagraph && lines.length === 1) {
-            paragraphs.push(new Paragraph({ children: [new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily })], spacing: { line: styles.spacing.line, after: 20 } }));
-          } else {
-            for (const line of lines) paragraphs.push(bulletParagraph(line, styles));
-          }
-        }
-        if (p.technologies?.length) {
-          paragraphs.push(new Paragraph({
-            children: [new TextRun({ text: `Technologies: ${p.technologies.join(", ")}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })],
-            spacing: { line: styles.spacing.line, after: 40 },
-          }));
-        }
-      }
-      break;
+      return renderProjects(cs.items as Project[], styles);
 
     case "awards":
       for (const a of cs.items as Award[]) {
@@ -1096,7 +1068,7 @@ const SECTION_RENDERERS: Record<
   skills: renderSkills,
   certifications: renderCertifications,
   languages: renderLanguages,
-  projects: renderProjects,
+  projects: (resume, styles) => renderProjects(resume.projects, styles),
   awards: renderAwards,
   references: renderReferences,
   customSections: renderCustomSections,
@@ -1141,7 +1113,8 @@ export async function generateDocx(
         const label = cs.title || "Untitled";
         // Cloned section with structured items
         if (cs.basedOn && cs.items?.length) {
-          children.push(...wrapSection(label, renderClonedDocxSection(cs, styles), styles));
+          const cloneStyles = cs.basedOn === "projects" ? stylesFor("projects") : styles;
+          children.push(...wrapSection(label, renderClonedDocxSection(cs, cloneStyles), cloneStyles));
         } else if (cs.content) {
           children.push(
             ...wrapSection(

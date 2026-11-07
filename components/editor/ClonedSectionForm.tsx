@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { SectionId } from "@/types/resume";
+import { ProjectsForm } from "./ProjectsForm";
 
 function generateId() {
   return Math.random().toString(36).slice(2, 11);
@@ -61,11 +62,6 @@ const SECTION_FIELDS: Record<string, FieldDef[]> = {
     { key: "language", label: "Language", half: true },
     { key: "proficiency", label: "Proficiency", half: true },
   ],
-  projects: [
-    { key: "name", label: "Project Name" },
-    { key: "url", label: "URL" },
-    { key: "description", label: "Description", type: "textarea" },
-  ],
   awards: [
     { key: "title", label: "Award Title", half: true },
     { key: "issuer", label: "Issuer", half: true },
@@ -96,10 +92,6 @@ function createBlankItem(basedOn: string): Record<string, unknown> {
   if (basedOn === "workExperience") {
     item.bullets = [];
   }
-  // Special: projects needs technologies array
-  if (basedOn === "projects") {
-    item.technologies = [];
-  }
   return item;
 }
 
@@ -122,8 +114,6 @@ function getItemHeader(item: Record<string, unknown>, basedOn: string): string {
       return (item.name as string) || "New Certification";
     case "languages":
       return (item.language as string) || "New Language";
-    case "projects":
-      return (item.name as string) || "New Project";
     case "awards":
       return (item.title as string) || "New Award";
     case "references":
@@ -294,7 +284,6 @@ export function ClonedSectionForm({
 }) {
   const { resume, addClonedItem, updateClonedTitle } = useResumeStore();
   const cs = resume?.customSections.find((s) => s.id === clonedId);
-  const debounceRef = useRef<NodeJS.Timeout>(null);
 
   if (!cs) return null;
 
@@ -306,7 +295,6 @@ export function ClonedSectionForm({
     skills: "Skill",
     certifications: "Certification",
     languages: "Language",
-    projects: "Project",
     awards: "Award",
     references: "Reference",
   };
@@ -319,36 +307,35 @@ export function ClonedSectionForm({
         <Input
           className="h-8 text-sm mt-1"
           placeholder="e.g. Nonformal Education, Volunteer Work"
-          defaultValue={cs.title}
-          onChange={(e) => {
-            if (debounceRef.current) clearTimeout(debounceRef.current);
-            debounceRef.current = setTimeout(() => {
-              updateClonedTitle(clonedId, e.target.value);
-            }, 300);
-          }}
+          value={cs.title}
+          onChange={(e) => updateClonedTitle(clonedId, e.target.value)}
         />
       </div>
 
-      {/* Entry list */}
-      {items.map((item, index) => (
-        <ClonedEntry
-          key={(item.id as string) || index}
-          item={item}
-          index={index}
-          basedOn={basedOn}
-          clonedId={clonedId}
-        />
-      ))}
-
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full"
-        onClick={() => addClonedItem(clonedId, createBlankItem(basedOn))}
-      >
-        <Plus className="h-4 w-4 mr-1.5" />
-        Add {SECTION_LABELS[basedOn] || "Item"}
-      </Button>
+      {basedOn === "projects" ? (
+        <ProjectsForm clonedId={clonedId} />
+      ) : (
+        <>
+          {items.map((item, index) => (
+            <ClonedEntry
+              key={(item.id as string) || index}
+              item={item}
+              index={index}
+              basedOn={basedOn}
+              clonedId={clonedId}
+            />
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => addClonedItem(clonedId, createBlankItem(basedOn))}
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add {SECTION_LABELS[basedOn] || "Item"}
+          </Button>
+        </>
+      )}
     </div>
   );
 }

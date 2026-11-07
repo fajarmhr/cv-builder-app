@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useResumeStore } from "@/lib/store/resume-store";
@@ -55,20 +55,9 @@ function ProjectEntry({
   };
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [techInput, setTechInput] = useState("");
-  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
-  const entryRef = useRef(entry);
-  entryRef.current = entry;
-
-  const handleFieldChange = useCallback(
-    (field: keyof Project, value: string | string[] | boolean) => {
-      const key = `${index}-${field}`;
-      if (debounceTimers.current[key]) clearTimeout(debounceTimers.current[key]);
-      debounceTimers.current[key] = setTimeout(() => {
-        onUpdate(index, { ...entryRef.current, [field]: value });
-      }, 300);
-    },
-    [index, onUpdate]
-  );
+  function handleFieldChange<K extends keyof Project>(field: K, value: Project[K]) {
+    onUpdate(index, { ...entry, [field]: value });
+  }
 
   function addTech() {
     const names = techInput.split(",").map((tech) => tech.trim()).filter(Boolean);
@@ -141,7 +130,7 @@ function ProjectEntry({
               <Input
                 className="h-9 text-sm mt-1"
                 placeholder="e.g. E-commerce Platform"
-                defaultValue={entry.name}
+                value={entry.name || ""}
                 onChange={(e) => handleFieldChange("name", e.target.value)}
               />
             </div>
@@ -150,7 +139,7 @@ function ProjectEntry({
               <Input
                 className="h-9 text-sm mt-1"
                 placeholder="https://..."
-                defaultValue={entry.url}
+                value={entry.url || ""}
                 onChange={(e) => handleFieldChange("url", e.target.value)}
               />
             </div>
@@ -162,7 +151,7 @@ function ProjectEntry({
               <Input
                 type="month"
                 className="h-9 text-sm mt-1"
-                defaultValue={entry.startDate}
+                value={entry.startDate || ""}
                 onChange={(e) => handleFieldChange("startDate", e.target.value)}
               />
             </div>
@@ -171,7 +160,7 @@ function ProjectEntry({
               <Input
                 type="month"
                 className="h-9 text-sm mt-1"
-                defaultValue={entry.endDate}
+                value={entry.endDate || ""}
                 disabled={entry.isCurrent}
                 onChange={(e) => handleFieldChange("endDate", e.target.value)}
               />
@@ -179,7 +168,7 @@ function ProjectEntry({
                 <input
                   type="checkbox"
                   className="rounded"
-                  defaultChecked={entry.isCurrent}
+                  checked={!!entry.isCurrent}
                   onChange={(e) => handleFieldChange("isCurrent", e.target.checked)}
                 />
                 <span className="text-xs text-muted-foreground">
@@ -194,7 +183,7 @@ function ProjectEntry({
             <textarea
               className="mt-1 w-full min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
               placeholder="Describe the project..."
-              defaultValue={entry.description}
+              value={entry.description || ""}
               onChange={(e) => handleFieldChange("description", e.target.value)}
             />
           </div>
@@ -230,13 +219,15 @@ function ProjectEntry({
   );
 }
 
-export function ProjectsForm() {
-  const { resume, addItem, updateItem, removeItem, duplicateItem, reorderItems } = useResumeStore();
-  const projects: Project[] = resume?.projects || [];
+export function ProjectsForm({ clonedId }: { clonedId?: string }) {
+  const store = useResumeStore();
+  const projects = clonedId
+    ? (store.resume?.customSections.find((section) => section.id === clonedId)?.items as Project[] | undefined) || []
+    : store.resume?.projects || [];
   const ids = projects.map((it, i) => it.id || `projects-${i}`);
 
   function handleAdd() {
-    addItem("projects", {
+    const project: Project = {
       id: generateId(),
       name: "",
       description: "",
@@ -245,24 +236,34 @@ export function ProjectsForm() {
       endDate: "",
       isCurrent: false,
       technologies: [],
-    } as Project);
+    };
+    if (clonedId) store.addClonedItem(clonedId, project);
+    else store.addItem("projects", project);
   }
 
   function handleUpdate(index: number, data: Project) {
-    updateItem("projects", index, data);
+    if (clonedId) store.updateClonedItem(clonedId, index, data);
+    else store.updateItem("projects", index, data);
   }
 
   function handleRemove(index: number) {
-    removeItem("projects", index);
+    if (clonedId) store.removeClonedItem(clonedId, index);
+    else store.removeItem("projects", index);
   }
 
   function handleDuplicate(index: number) {
-    duplicateItem("projects", index);
+    if (clonedId) store.duplicateClonedItem(clonedId, index);
+    else store.duplicateItem("projects", index);
+  }
+
+  function handleReorder(from: number, to: number) {
+    if (clonedId) store.reorderClonedItems(clonedId, from, to);
+    else store.reorderItems("projects", from, to);
   }
 
   return (
     <div className="space-y-3">
-      <SortableList ids={ids} onReorder={(from, to) => reorderItems("projects", from, to)}>
+      <SortableList ids={ids} onReorder={handleReorder}>
       {projects.map((project, index) => (
         <ProjectEntry
           key={ids[index]}

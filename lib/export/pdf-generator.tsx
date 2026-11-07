@@ -892,6 +892,7 @@ function ResumePdfDocument({
   });
 
   function renderCloned(cs: CustomSection) {
+    const projectStyles = cs.basedOn === "projects" ? stylesFor("projects") : styles;
     let body: React.ReactNode;
     if (!cs.basedOn || !cs.items?.length) {
       if (!cs.content) return null;
@@ -908,23 +909,24 @@ function ResumePdfDocument({
           body = renderSkillItems(cs.items as ResumeData["skills"], config, styles);
           break;
         case "projects":
-          body = renderProjectItems(cs.items as ResumeData["projects"], config, styles, variant);
+          body = <View>{renderProjectItems(cs.items as ResumeData["projects"], config, projectStyles, variant)}</View>;
           break;
         default:
           body = <Text>{cs.content}</Text>;
       }
     }
-    return (
+    const node = (
       <Section
         key={cs.id}
         label={cs.title}
         variant={variant}
-        styles={styles}
+        styles={projectStyles}
         atomic={!BREAKABLE_SECTIONS.has(cs.basedOn ?? "")}
       >
         {body}
       </Section>
     );
+    return cs.basedOn === "projects" ? <View key={cs.id} style={sectionFrame("projects")}>{node}</View> : node;
   }
 
   return (

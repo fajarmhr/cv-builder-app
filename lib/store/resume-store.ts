@@ -50,7 +50,7 @@ interface ResumeStore {
   updateItem: (section: SectionId, index: number, data: unknown) => void;
   removeItem: (section: SectionId, index: number) => void;
   duplicateItem: (section: SectionId, index: number) => void;
-  duplicateSection: (section: SectionId) => void;
+  duplicateSection: (section: SectionId, sourceCloneId?: string) => void;
   reorderItems: (section: SectionId, oldIndex: number, newIndex: number) => void;
 
   // Section management
@@ -64,6 +64,7 @@ interface ResumeStore {
   updateClonedItem: (clonedId: string, index: number, data: unknown) => void;
   removeClonedItem: (clonedId: string, index: number) => void;
   duplicateClonedItem: (clonedId: string, index: number) => void;
+  reorderClonedItems: (clonedId: string, from: number, to: number) => void;
 
   // Template
   setTemplateId: (templateId: string) => void;
@@ -271,12 +272,16 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
     });
   },
 
-  duplicateSection: (section: SectionId) => {
+  duplicateSection: (section, sourceCloneId) => {
     const { resume, history } = get();
     if (!resume || !isArraySection(section)) return;
     if (section === "customSections") return; // can't clone the custom sections group
 
-    const currentArray = (resume[section] as unknown[]) || [];
+    const sourceClone = sourceCloneId
+      ? resume.customSections.find((cs) => cs.id === sourceCloneId && cs.basedOn === section)
+      : undefined;
+    if (sourceCloneId && !sourceClone) return;
+    const currentArray = sourceClone ? sourceClone.items || [] : (resume[section] as unknown[]) || [];
     if (currentArray.length === 0) return;
 
     const newHistory = pushHistory(history, resume);
@@ -295,14 +300,17 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
     // Deep-clone all items and assign new ids
     const clonedItems = currentArray.map((item) => {
       const clone = JSON.parse(JSON.stringify(item));
-      if (clone.id) clone.id = Math.random().toString(36).slice(2, 11);
+      clone.id = Math.random().toString(36).slice(2, 11);
       return clone;
     });
 
     const newId = Math.random().toString(36).slice(2, 11);
+    const sourceTitle = sourceClone
+      ? sourceClone.title || "Untitled Section"
+      : resume.templateConfig?.sectionTitles?.[section] || SECTION_LABELS[section] || section;
     const newCustomSection: CustomSection = {
       id: newId,
-      title: `${SECTION_LABELS[section] || section} (Copy)`,
+      title: `${sourceTitle} (Copy)`,
       content: "",
       basedOn: section,
       items: clonedItems,
@@ -310,7 +318,7 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
 
     // Insert "custom:<id>" into sectionOrder right after the original section
     const newOrder = [...resume.sectionOrder];
-    const idx = newOrder.indexOf(section);
+    const idx = newOrder.indexOf(sourceClone ? `custom:${sourceClone.id}` : section);
     if (idx !== -1) {
       newOrder.splice(idx + 1, 0, `custom:${newId}`);
     } else {
@@ -485,6 +493,20 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
       canUndo: newHistory.past.length > 0,
       canRedo: false,
     });
+  },
+
+  reorderClonedItems: (clonedId, from, to) => {
+    const { resume, updateField } = get();
+    const section = resume?.customSections.find((cs) => cs.id === clonedId);
+    if (!resume || !section?.items || from === to) return;
+    if (from < 0 || to < 0 || from >= section.items.length || to >= section.items.length) return;
+
+    const items = [...section.items];
+    const [moved] = items.splice(from, 1);
+    items.splice(to, 0, moved);
+    updateField("customSections", resume.customSections.map((cs) =>
+      cs.id === clonedId ? { ...cs, items } : cs
+    ));
   },
 
   removeCustomCard: (customId: string) => {

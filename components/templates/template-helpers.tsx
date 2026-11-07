@@ -8,7 +8,6 @@ import type {
   Skill,
   Certification,
   Language,
-  Project,
   Award,
   Reference,
 } from "@/types/resume";
@@ -399,30 +398,6 @@ export function RenderClonedSection({
         </div>
       );
 
-    case "projects":
-      return (
-        <div key={cs.id}>
-          <SectionTitle>{cs.title}</SectionTitle>
-          {(cs.items as Project[]).map((p, i) => (
-            <div key={i} className="mb-2">
-              <div className="flex justify-between items-baseline">
-                <p className={`font-bold ${textSize}`}>{p.name}</p>
-                {(p.startDate || p.endDate || p.isCurrent) && (
-                  <span className={subTextSize} style={{ color: subColor }}>
-                    {p.startDate && formatDate(p.startDate)}
-                    {p.startDate && (p.endDate || p.isCurrent) && " \u2014 "}
-                    {p.isCurrent ? "Present" : p.endDate && formatDate(p.endDate)}
-                  </span>
-                )}
-              </div>
-              <BulletList description={p.description} bulletStyle={config.bulletStyle} className={textSize} />
-              {p.technologies?.length > 0 && (
-                <p className={subTextSize} style={{ color: subColor }}>Tech: {p.technologies.join(", ")}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      );
 
     case "awards":
       return (
