@@ -71,9 +71,9 @@ function ProjectEntry({
   );
 
   function addTech() {
-    const trimmed = techInput.trim();
-    if (!trimmed) return;
-    const techs = [...(entry.technologies || []), trimmed];
+    const names = techInput.split(",").map((tech) => tech.trim()).filter(Boolean);
+    if (!names.length) return;
+    const techs = [...(entry.technologies || []), ...names];
     onUpdate(index, { ...entry, technologies: techs });
     setTechInput("");
   }
@@ -214,7 +214,7 @@ function ProjectEntry({
             <div className="flex gap-2">
               <Input
                 className="h-8 text-sm flex-1"
-                placeholder="Type and press Enter"
+                placeholder="Add technologies, separated by commas"
                 value={techInput}
                 onChange={(e) => setTechInput(e.target.value)}
                 onKeyDown={handleTechKeyDown}

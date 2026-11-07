@@ -15,23 +15,27 @@ function generateId() {
 const LEVELS = ["Beginner", "Intermediate", "Advanced", "Expert"];
 
 export function SkillsForm() {
-  const { resume, addItem, updateItem, removeItem, duplicateItem, reorderItems } =
+  const { resume, addItem, updateItem, removeItem, duplicateItem, reorderItems, updateField } =
     useResumeStore();
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const [bulkInputs, setBulkInputs] = useState<Record<string, string>>({});
 
   const skills: Skill[] = resume?.skills || [];
   const ids = skills.map((s, i) => s.id || `skill-${i}`);
-  const groups = Array.from(new Set(skills.map((s) => (s.category || "").trim())))
-    .sort((a, b) => (a === "" ? 1 : b === "" ? -1 : 0));
+  const groups = Array.from(new Set(skills.map((s) => (s.category || "").trim())));
+  const groupIds = groups.map((category) => `group:${category}`);
   const handleUpdate = useCallback(
     (index: number, field: keyof Skill, value: string | boolean) => {
-      const key = `${index}-${field}`;
+      const skill = skills[index];
+      if (!skill) return;
+      const key = `${skill.id || index}-${field}`;
       if (debounceTimers.current[key]) clearTimeout(debounceTimers.current[key]);
       debounceTimers.current[key] = setTimeout(() => {
-        const currentSkill = skills[index];
+        const currentSkills = useResumeStore.getState().resume?.skills || [];
+        const currentIndex = skill.id ? currentSkills.findIndex((item) => item.id === skill.id) : currentSkills.indexOf(skill);
+        const currentSkill = currentSkills[currentIndex];
         if (currentSkill) {
-          updateItem("skills", index, { ...currentSkill, [field]: value });
+          updateItem("skills", currentIndex, { ...currentSkill, [field]: value });
         }
       }, 300);
     },
@@ -69,14 +73,27 @@ export function SkillsForm() {
   return (
     <div className="space-y-3">
       {skills.length > 0 && (
-        <SortableList ids={ids} onReorder={(from, to) => reorderItems("skills", from, to)}>
+        <SortableList ids={groupIds} onReorder={(from, to) => {
+          const reordered = [...groups];
+          const [moved] = reordered.splice(from, 1);
+          reordered.splice(to, 0, moved);
+          updateField("skills", reordered.flatMap((category) =>
+            skills.filter((skill) => (skill.category || "").trim() === category)
+          ));
+        }}>
           <div className="space-y-3">
             {groups.map((category) => {
               const entries = skills.map((skill, index) => ({ skill, index }))
                 .filter(({ skill }) => (skill.category || "").trim() === category);
-              const groupKey = category || "__uncategorized__";
+              const groupKey = `group:${category}`;
               return (
-                <section key={groupKey} className="space-y-2 rounded-md border p-2">
+                <SortableItem key={groupKey} id={groupKey}>
+                  {({ setNodeRef, style, handleProps }) => (
+                <section ref={setNodeRef} style={style} className="space-y-2 rounded-md border p-2">
+                  <div className="flex items-center gap-1.5">
+                    <span {...handleProps} className="shrink-0 cursor-grab touch-none text-muted-foreground active:cursor-grabbing" title="Drag to reorder group" aria-label="Drag to reorder group">
+                      <GripVertical className="h-4 w-4" />
+                    </span>
                   {category ? (
                     <Input
                       className="h-8 text-sm font-semibold"
@@ -90,6 +107,8 @@ export function SkillsForm() {
                   ) : (
                     <div className="text-sm font-semibold text-muted-foreground">Other Skills</div>
                   )}
+                  </div>
+                  <SortableList ids={entries.map(({ index }) => ids[index])} onReorder={(from, to) => reorderItems("skills", entries[from].index, entries[to].index)}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {entries.map(({ skill, index }) => (
                       <SortableItem key={ids[index]} id={ids[index]}>
@@ -123,6 +142,7 @@ export function SkillsForm() {
                       </SortableItem>
                     ))}
                   </div>
+                  </SortableList>
                   <div className="flex gap-2">
                     <Input
                       className="h-8 min-w-0 flex-1 text-sm"
@@ -135,6 +155,8 @@ export function SkillsForm() {
                     <Button variant="outline" size="sm" className="h-8 shrink-0" onClick={() => addSkill(category)}><Plus className="mr-1 h-4 w-4" />One</Button>
                   </div>
                 </section>
+                  )}
+                </SortableItem>
               );
             })}
           </div>

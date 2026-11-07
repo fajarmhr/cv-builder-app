@@ -128,7 +128,7 @@ export function getBulletMarker(style?: TemplateConfig["bulletStyle"]): string {
  * Parse description text into bullet lines.
  * Strips leading markers (•, -, *, ▸, ▪, –) and splits by newlines.
  */
-/** Group skills by their (optional) category, preserving first-seen order; uncategorized last. */
+/** Group skills by their (optional) category, preserving first-seen order. */
 export function groupSkills(skills: Skill[]): { category: string; items: Skill[] }[] {
   const order: string[] = [];
   const map = new Map<string, Skill[]>();
@@ -140,9 +140,7 @@ export function groupSkills(skills: Skill[]): { category: string; items: Skill[]
     }
     map.get(cat)!.push(s);
   }
-  const cats = order.filter((c) => c !== "");
-  if (map.has("")) cats.push("");
-  return cats.map((c) => ({ category: c, items: map.get(c)! }));
+  return order.map((c) => ({ category: c, items: map.get(c)! }));
 }
 
 /**
