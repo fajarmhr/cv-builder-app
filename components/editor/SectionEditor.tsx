@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -28,6 +28,7 @@ import {
   EyeOff,
   GripVertical,
   Plus,
+  Pencil,
   Trash2,
 } from "lucide-react";
 import type { SectionId } from "@/types/resume";
@@ -104,6 +105,8 @@ function SortableSection({
   onToggleVisibility,
   onDuplicateSection,
   itemCount,
+  title,
+  onRename,
 }: {
   sectionId: string;
   isCollapsed: boolean;
@@ -111,7 +114,18 @@ function SortableSection({
   onToggleVisibility: () => void;
   onDuplicateSection: () => void;
   itemCount: number | null;
+  title: string;
+  onRename: (title: string) => void;
 }) {
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(title);
+  const cancelTitleEdit = useRef(false);
+
+  function saveTitle() {
+    if (!cancelTitleEdit.current && draftTitle.trim() !== title) onRename(draftTitle.trim());
+    cancelTitleEdit.current = false;
+    setIsEditingTitle(false);
+  }
   const {
     attributes,
     listeners,
@@ -134,33 +148,64 @@ function SortableSection({
     <div ref={setNodeRef} style={style} className="overflow-hidden rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] shadow-sm shadow-[var(--c-primary)]/8">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <button
-            className="cursor-grab touch-none text-[var(--c-muted-2)] hover:text-[var(--c-ink-2)] active:cursor-grabbing"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-4 w-4" />
-          </button>
-          <button
-            className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[var(--c-ink)] transition-colors hover:text-[var(--c-primary)]"
-            onClick={onToggleCollapse}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-4 w-4 shrink-0" />
-            ) : (
-              <ChevronDown className="h-4 w-4 shrink-0" />
-            )}
-            <span className="truncate">
-              {SECTION_LABELS[sectionId] || sectionId}
-              {itemCount !== null && itemCount > 0 && (
-                <span className="ml-1 font-normal text-[var(--c-muted-2)]">
-                  ({itemCount})
+          {isEditingTitle ? (
+            <input
+              autoFocus
+              aria-label="Section title"
+              className="h-8 min-w-0 flex-1 rounded-md border border-[var(--c-border)] bg-[var(--c-surface)] px-2 text-sm text-[var(--c-ink)]"
+              value={draftTitle}
+              onChange={(event) => setDraftTitle(event.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+                if (event.key === "Escape") {
+                  cancelTitleEdit.current = true;
+                  setDraftTitle(title);
+                  setIsEditingTitle(false);
+                }
+              }}
+            />
+          ) : (
+            <>
+              <button
+                className="cursor-grab touch-none text-[var(--c-muted-2)] hover:text-[var(--c-ink-2)] active:cursor-grabbing"
+                {...attributes}
+                {...listeners}
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
+              <button
+                className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[var(--c-ink)] transition-colors hover:text-[var(--c-primary)]"
+                onClick={onToggleCollapse}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="h-4 w-4 shrink-0" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 shrink-0" />
+                )}
+                <span className="truncate">
+                  {title}
+                  {itemCount !== null && itemCount > 0 && (
+                    <span className="ml-1 font-normal text-[var(--c-muted-2)]">
+                      ({itemCount})
+                    </span>
+                  )}
                 </span>
-              )}
-            </span>
-          </button>
+              </button>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
+          {!isEditingTitle && <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full text-[var(--c-muted-2)] hover:bg-[var(--c-surface-2)] hover:text-[var(--c-primary)]"
+            onClick={() => { setDraftTitle(title); setIsEditingTitle(true); }}
+            title="Rename section"
+            aria-label="Rename section"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>}
           {ARRAY_SECTIONS.has(sectionId) && itemCount !== null && itemCount > 0 && (
             <Button
               variant="ghost"
@@ -299,7 +344,7 @@ function SortableCustomCard({
 /* ------------------------------------------------------------------ */
 
 export function SectionEditor() {
-  const { resume, toggleSectionVisibility, updateSectionOrder, duplicateSection } =
+  const { resume, toggleSectionVisibility, updateSectionOrder, duplicateSection, updateTemplateConfig } =
     useResumeStore();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
     new Set()
@@ -343,7 +388,7 @@ export function SectionEditor() {
       const cs = resume?.customSections.find((s) => s.id === entryId);
       return cs?.title || "Untitled Section";
     }
-    return SECTION_LABELS[sectionId] || sectionId;
+    return resume?.templateConfig?.sectionTitles?.[sectionId as SectionId] || SECTION_LABELS[sectionId] || sectionId;
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -389,6 +434,14 @@ export function SectionEditor() {
               <SortableSection
                 key={sectionId}
                 sectionId={sectionId}
+                title={getSectionLabel(sectionId)}
+                onRename={(title) => {
+                  const key = sectionId as SectionId;
+                  const sectionTitles = { ...resume?.templateConfig?.sectionTitles };
+                  if (title && title !== SECTION_LABELS[sectionId]) sectionTitles[key] = title;
+                  else delete sectionTitles[key];
+                  updateTemplateConfig({ sectionTitles });
+                }}
                 isCollapsed={collapsedSections.has(sectionId)}
                 onToggleCollapse={() => toggleCollapse(sectionId)}
                 onToggleVisibility={() => toggleSectionVisibility(sectionId)}

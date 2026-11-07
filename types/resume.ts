@@ -135,6 +135,7 @@ export interface TemplateConfig {
   bulletStyle?: "disc" | "dash" | "arrow" | "square" | "none";
   /** Per-section font-size / line-spacing overrides; each falls back to the global value above. */
   sectionStyles?: Partial<Record<SectionId, SectionStyleOverride>>;
+  sectionTitles?: Partial<Record<SectionId, string>>;
 }
 
 export interface SectionStyleOverride {

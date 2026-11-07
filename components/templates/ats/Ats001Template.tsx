@@ -12,6 +12,8 @@ import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, S
 export function Ats001Template({ resume, config }: TemplateProps) {
   const info = resume.personalInfo;
   const visible = getVisibleSections(resume);
+  const sectionTitle = (section: SectionId, fallback: string) =>
+    config.sectionTitles?.[section] || fallback;
 
   const SectionTitle = ({ children }: { children: React.ReactNode }) => (
     <div className="mb-2 mt-4">
@@ -45,6 +47,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
     summary: () =>
       resume.summary ? (
         <div key="sum">
+          {config.sectionTitles?.summary && <SectionTitle>{config.sectionTitles.summary}</SectionTitle>}
           <p className="text-xs leading-[var(--line-spacing)] text-justify whitespace-pre-line">{resume.summary}</p>
         </div>
       ) : null,
@@ -52,7 +55,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
     workExperience: () =>
       hasContent(resume, "workExperience") ? (
         <div key="we">
-          <SectionTitle>Work Experience</SectionTitle>
+          <SectionTitle>{sectionTitle("workExperience", "Work Experience")}</SectionTitle>
           {resume.workExperience.map((exp, i) => (
             <div key={exp.id || i} className="mb-3">
               <span className="font-bold text-xs uppercase">{exp.company}</span>
@@ -77,7 +80,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
     education: () =>
       hasContent(resume, "education") ? (
         <div key="edu">
-          <SectionTitle>Education</SectionTitle>
+          <SectionTitle>{sectionTitle("education", "Education")}</SectionTitle>
           {resume.education.map((edu, i) => (
             <div key={edu.id || i} className="mb-2">
               <div className="flex justify-between items-baseline">
@@ -100,7 +103,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
     skills: () =>
       hasContent(resume, "skills") ? (
         <div key="sk">
-          <SectionTitle>Skills</SectionTitle>
+          <SectionTitle>{sectionTitle("skills", "Skills")}</SectionTitle>
           <SkillsBlock skills={resume.skills} config={config} textSize="text-xs" />
         </div>
       ) : null,
@@ -108,7 +111,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
     certifications: () =>
       hasContent(resume, "certifications") ? (
         <div key="cert">
-          <SectionTitle>Certifications</SectionTitle>
+          <SectionTitle>{sectionTitle("certifications", "Certifications")}</SectionTitle>
           {resume.certifications.map((c, i) => (
             <div key={c.id || i} className="text-xs mb-1">
               <p>
@@ -127,7 +130,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
     languages: () =>
       hasContent(resume, "languages") ? (
         <div key="lang">
-          <SectionTitle>Languages</SectionTitle>
+          <SectionTitle>{sectionTitle("languages", "Languages")}</SectionTitle>
           <p className="text-xs">
             {resume.languages.map((l) => `${l.language}${l.proficiency ? ` (${l.proficiency})` : ""}`).join(", ")}
           </p>
@@ -137,7 +140,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
     projects: () =>
       hasContent(resume, "projects") ? (
         <div key="proj">
-          <SectionTitle>Projects</SectionTitle>
+          <SectionTitle>{sectionTitle("projects", "Projects")}</SectionTitle>
           {resume.projects.map((p, i) => (
             <div key={p.id || i} className="mb-2">
               <div className="flex justify-between items-baseline">
@@ -162,7 +165,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
     awards: () =>
       hasContent(resume, "awards") ? (
         <div key="aw">
-          <SectionTitle>Awards</SectionTitle>
+          <SectionTitle>{sectionTitle("awards", "Awards")}</SectionTitle>
           {resume.awards.map((a, i) => (
             <p key={a.id || i} className="text-xs mb-1">
               <span className="font-semibold">{a.title}</span>
@@ -176,7 +179,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
     references: () =>
       hasContent(resume, "references") ? (
         <div key="ref">
-          <SectionTitle>References</SectionTitle>
+          <SectionTitle>{sectionTitle("references", "References")}</SectionTitle>
           {resume.references.map((r, i) => (
             <p key={r.id || i} className="text-xs mb-1">
               <span className="font-semibold">{r.name}</span>

@@ -941,12 +941,11 @@ function ResumePdfDocument({
 
           // personalInfo is the header and customSections labels its own
           // entries; everything else gets a heading from <Section>.
-          const label =
-            s === "personalInfo" || s === "customSections"
-              ? null
-              : s === "summary"
+          const label = s === "personalInfo" || s === "customSections"
+            ? null
+            : config.sectionTitles?.[s as SectionId] || (s === "summary"
               ? SUMMARY_LABEL[variant]
-              : SECTION_LABELS[s] || s;
+              : SECTION_LABELS[s] || s);
 
           const node =
             label === null ? (

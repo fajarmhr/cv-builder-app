@@ -1164,12 +1164,11 @@ export async function generateDocx(
 
     // personalInfo is the header and customSections labels its own entries;
     // everything else gets a heading (or gutter label) from wrapSection.
-    const label =
-      sectionId === "personalInfo" || sectionId === "customSections"
-        ? null
-        : sectionId === "summary"
+    const label = sectionId === "personalInfo" || sectionId === "customSections"
+      ? null
+      : resume.templateConfig?.sectionTitles?.[sectionId as SectionId] || (sectionId === "summary"
         ? SUMMARY_LABEL[sectionStyles.variant]
-        : SECTION_LABELS[sectionId] || sectionId;
+        : SECTION_LABELS[sectionId] || sectionId);
 
     children.push(...wrapSection(label, body, sectionStyles));
   }

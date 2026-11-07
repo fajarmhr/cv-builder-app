@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
-import { availabilityLabel, formatGpa } from "@/types/resume";
+import { availabilityLabel, formatGpa, type SectionId } from "@/types/resume";
 import {
   formatDate,
   getVisibleSections,
@@ -578,7 +578,7 @@ export function VariantTemplate({
 
         const body = sectionBodies[s]?.();
         if (!body) return null;
-        const label = s === "summary" ? summaryLabel : SECTION_LABELS[s] || s;
+        const label = config.sectionTitles?.[s as SectionId] || (s === "summary" ? summaryLabel : SECTION_LABELS[s] || s);
         return (
           <SectionFrame key={s} sectionId={s} config={config}>
             <Section label={label} variant={variant} accent={accent}>
