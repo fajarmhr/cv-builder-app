@@ -6,6 +6,11 @@ import {
   Image,
   StyleSheet,
   Font,
+  Svg,
+  Circle,
+  Line,
+  Path,
+  Rect,
   renderToBuffer,
 } from "@react-pdf/renderer";
 import type { ResumeData, TemplateConfig, CustomSection, SectionId } from "@/types/resume";
@@ -14,7 +19,6 @@ import {
   formatDate,
   getVisibleSections,
   hasContent,
-  getBulletMarker,
   groupSkills,
   findCustomSection,
   isCustomSectionId,
@@ -286,7 +290,9 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
     sub: { fontSize: sz(7.5), color: SUB },
     itemBlock: { marginBottom: 9 },
     itemBlockSm: { marginBottom: 6 },
-    bulletText: { paddingLeft: 9, textIndent: -9, marginTop: 1.5 },
+    bulletRow: { marginTop: 1.5 },
+    bulletMarker: { position: "absolute", left: 0, top: 0, width: 9 },
+    bulletText: { marginLeft: 9 },
     paraSm: { marginBottom: 3 },
     mt0: { marginTop: 1.5 },
   });
@@ -327,19 +333,52 @@ function Bullets({
   const { lines, paragraph } = resolveBullets(bullets, description);
   if (paragraph) return <Text style={styles.mt0}>{paragraph}</Text>;
   if (lines.length === 0) return null;
-  const marker = getBulletMarker(config.bulletStyle);
   return (
     <View style={styles.mt0}>
       {lines.map((b, i) => (
-        <Text key={i} style={marker ? styles.bulletText : styles.mt0}>
-          {marker ? `${marker}\u2002` : ""}{b}
-        </Text>
+        <PdfBullet key={i} bulletStyle={config.bulletStyle} styles={styles}>{b}</PdfBullet>
       ))}
     </View>
   );
 }
 
 type Styles = ReturnType<typeof buildStyles>;
+
+/** Vector markers work even when the selected font lacks bullet glyphs. */
+function PdfBullet({ bulletStyle, styles, children }: {
+  bulletStyle: TemplateConfig["bulletStyle"];
+  styles: Styles;
+  children: string;
+}) {
+  if (bulletStyle === "none") return <Text style={styles.mt0}>{children}</Text>;
+  const fontSize = styles.page.fontSize;
+  const lineHeight = fontSize * styles.page.lineHeight;
+  const center = lineHeight / 2;
+  const size = fontSize / 3;
+  let marker: React.ReactNode;
+  switch (bulletStyle) {
+    case "dash":
+      marker = <Line x1={0} y1={center} x2={size * 1.5} y2={center} stroke="#000000" strokeWidth={0.75} />;
+      break;
+    case "arrow":
+      marker = <Path d={`M 0 ${center - size} L ${size * 1.5} ${center} L 0 ${center + size} Z`} fill="#000000" />;
+      break;
+    case "square":
+      marker = <Rect x={0} y={center - size / 2} width={size} height={size} fill="#000000" />;
+      break;
+    default:
+      marker = <Circle cx={size / 2} cy={center} r={size / 2} fill="#000000" />;
+  }
+  // Text comes first so pagination moves the marker with it when no line fits.
+  return (
+    <View style={styles.bulletRow}>
+      <Text style={styles.bulletText} orphans={1} widows={1}>{children}</Text>
+      <Svg width={9} height={lineHeight} style={styles.bulletMarker} viewBox={`0 0 9 ${lineHeight}`}>
+        {marker}
+      </Svg>
+    </View>
+  );
+}
 
 /** Keep a timeline date with its heading while the description flows across pages. */
 function TimelineEntry({ when, heading, children, styles, last }: {
@@ -569,13 +608,10 @@ function renderSkillItems(
     );
   }
 
-  const marker = getBulletMarker(config.bulletStyle);
   return (
     <View style={styles.mt0}>
       {items.map((s, i) => (
-        <Text key={s.id || i} style={marker ? styles.bulletText : styles.mt0}>
-          {marker ? `${marker}\u2002` : ""}{fmt(s)}
-        </Text>
+        <PdfBullet key={s.id || i} bulletStyle={config.bulletStyle} styles={styles}>{fmt(s)}</PdfBullet>
       ))}
     </View>
   );
