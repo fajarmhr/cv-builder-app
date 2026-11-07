@@ -4,12 +4,7 @@ import type {
   TemplateConfig,
   SectionId,
   CustomSection,
-  Education,
   Skill,
-  Certification,
-  Language,
-  Award,
-  Reference,
 } from "@/types/resume";
 import { isCustomSectionId, getCustomSectionEntryId, normalizeWorkExperience, formatGpa } from "@/types/resume";
 import type { ReactNode, CSSProperties } from "react";
@@ -90,6 +85,17 @@ export function findCustomSection(resume: ResumeData, sectionOrderEntry: string)
   if (!isCustomSectionId(sectionOrderEntry)) return null;
   const entryId = getCustomSectionEntryId(sectionOrderEntry);
   return resume.customSections.find((cs) => cs.id === entryId) || null;
+}
+
+/** Feed copied items through the same section renderer as the source. */
+export function resumeWithClonedSection(resume: ResumeData, section: CustomSection): ResumeData {
+  if (!section.basedOn) return resume;
+  return {
+    ...resume,
+    [section.basedOn]: section.basedOn === "workExperience"
+      ? normalizeWorkExperience(section.items)
+      : section.items || [],
+  };
 }
 
 export { isCustomSectionId };
@@ -186,7 +192,6 @@ export function SkillsBlock({
     </div>
   );
 }
-
 function parseBulletsFromDescription(description: string): string[] {
   return description
     .split("\n")
@@ -279,160 +284,4 @@ export function ProfilePhoto({
       style={{ width: `${size}px`, height: `${size}px` }}
     />
   );
-}
-
-/* ------------------------------------------------------------------ */
-/*  RenderClonedSection — renders a cloned section with structured    */
-/*  items matching the original section type                          */
-/* ------------------------------------------------------------------ */
-
-export function RenderClonedSection({
-  cs,
-  config,
-  SectionTitle,
-  textSize = "text-xs",
-  subTextSize = "text-[10px]",
-}: {
-  cs: CustomSection;
-  config: TemplateConfig;
-  SectionTitle: React.ComponentType<{ children: React.ReactNode }>;
-  textSize?: string;
-  subTextSize?: string;
-}) {
-  if (!cs.basedOn || !cs.items?.length) return null;
-
-  const subColor = "#555";
-
-  switch (cs.basedOn) {
-    case "workExperience":
-      return (
-        <div key={cs.id}>
-          <SectionTitle>{cs.title}</SectionTitle>
-          {normalizeWorkExperience(cs.items).map((exp, i) => (
-            <div key={exp.id || i} className="mb-3">
-              <span className={`font-bold ${textSize} uppercase`}>{exp.company}</span>
-              {exp.positions.map((pos, pi) => (
-                <div key={pos.id || pi} className="mt-1">
-                  <div className="flex justify-between items-baseline">
-                    <span className={`font-semibold ${textSize}`}>{pos.title}</span>
-                    <span className={subTextSize} style={{ color: subColor }}>
-                      {pos.startDate && formatDate(pos.startDate)}
-                      {(pos.startDate && (pos.endDate || pos.isCurrent)) && " \u2014 "}
-                      {pos.isCurrent ? "Present" : pos.endDate && formatDate(pos.endDate)}
-                    </span>
-                  </div>
-                  <BulletList bullets={pos.bullets} description={pos.description} bulletStyle={config.bulletStyle} className={textSize} />
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      );
-
-    case "education":
-      return (
-        <div key={cs.id}>
-          <SectionTitle>{cs.title}</SectionTitle>
-          {(cs.items as Education[]).map((edu, i) => (
-            <div key={i} className="mb-2">
-              <div className="flex justify-between items-baseline">
-                <span className={`font-bold ${textSize} uppercase`}>{edu.institution}</span>
-                <span className={subTextSize} style={{ color: subColor }}>
-                  {edu.startDate && formatDate(edu.startDate)}
-                  {edu.startDate && edu.endDate && " \u2014 "}
-                  {edu.endDate && formatDate(edu.endDate)}
-                </span>
-              </div>
-              <p className={textSize}>
-                {edu.degree}{edu.fieldOfStudy ? `, ${edu.fieldOfStudy}` : ""}
-              </p>
-              {edu.gpa && <p className={textSize}>GPA: {formatGpa(edu)}</p>}
-            </div>
-          ))}
-        </div>
-      );
-
-    case "skills": {
-      const skillMarker = getBulletMarker(config.bulletStyle);
-      return (
-        <div key={cs.id}>
-          <SectionTitle>{cs.title}</SectionTitle>
-          <ul className="mt-0.5 space-y-0.5">
-            {(cs.items as Skill[]).map((s, i) => (
-              <li key={i} className={`${textSize} flex items-start gap-1.5`} style={{ listStyleType: "none" }}>
-                {skillMarker && <span className="shrink-0 leading-[inherit]">{skillMarker}</span>}
-                <span>{s.name}{s.level ? ` (${s.level})` : ""}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
-    }
-
-    case "certifications":
-      return (
-        <div key={cs.id}>
-          <SectionTitle>{cs.title}</SectionTitle>
-          {(cs.items as Certification[]).map((c, i) => (
-            <div key={i} className={`${textSize} mb-1`}>
-              <p>
-                <span className="font-semibold">{c.name}</span>
-                {c.issuer ? ` \u2014 ${c.issuer}` : ""}
-                {c.date ? ` (${formatDate(c.date)})` : ""}
-              </p>
-              {c.credentialId && (
-                <p className={subTextSize} style={{ color: subColor }}>Credential ID: {c.credentialId}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      );
-
-    case "languages":
-      return (
-        <div key={cs.id}>
-          <SectionTitle>{cs.title}</SectionTitle>
-          <p className={textSize}>
-            {(cs.items as Language[]).map((l) => `${l.language}${l.proficiency ? ` (${l.proficiency})` : ""}`).join(", ")}
-          </p>
-        </div>
-      );
-
-
-    case "awards":
-      return (
-        <div key={cs.id}>
-          <SectionTitle>{cs.title}</SectionTitle>
-          {(cs.items as Award[]).map((a, i) => (
-            <p key={i} className={`${textSize} mb-1`}>
-              <span className="font-semibold">{a.title}</span>
-              {a.issuer ? ` \u2014 ${a.issuer}` : ""}
-              {a.date ? ` (${formatDate(a.date)})` : ""}
-            </p>
-          ))}
-        </div>
-      );
-
-    case "references":
-      return (
-        <div key={cs.id}>
-          <SectionTitle>{cs.title}</SectionTitle>
-          {(cs.items as Reference[]).map((r, i) => (
-            <p key={i} className={`${textSize} mb-1`}>
-              <span className="font-semibold">{r.name}</span>
-              {r.position ? `, ${r.position}` : ""}{r.company ? ` at ${r.company}` : ""}
-              {r.email ? ` \u2014 ${r.email}` : ""}{r.phone ? ` | ${r.phone}` : ""}
-            </p>
-          ))}
-        </div>
-      );
-
-    default:
-      return cs.content ? (
-        <div key={cs.id}>
-          <SectionTitle>{cs.title}</SectionTitle>
-          <p className={`${textSize} whitespace-pre-wrap`}>{cs.content}</p>
-        </div>
-      ) : null;
-  }
 }

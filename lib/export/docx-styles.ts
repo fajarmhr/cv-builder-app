@@ -1,7 +1,7 @@
 import type { TemplateConfig } from "@/types/resume";
 import { AlignmentType } from "docx";
 import { getTemplateFont } from "@/lib/template-fonts";
-import { tintOnWhite } from "@/components/templates/template-helpers";
+import { tintOnWhite, FONT_SCALE_MAP, LINE_SPACING_MAP } from "@/components/templates/template-helpers";
 
 const VARIANT_BY_ID: Record<string, DocxVariant> = {
   "ats-002": "accent",
@@ -28,8 +28,11 @@ export interface DocxStyleConfig {
   heading2Size: number;
   heading3Size: number;
   normalSize: number;
+  subSize: number;
   fontFamily: string;
+  boldFontFamily: string;
   headerFontFamily: string;
+  headerBoldFontFamily: string;
   accentColor: string;     // hex without #
   headingTextColor: string; // hex without # — dark color for section heading text
   variant: DocxVariant;
@@ -44,7 +47,7 @@ export interface DocxStyleConfig {
   bulletStyle: TemplateConfig["bulletStyle"]; // disc, dash, arrow, square, none
   spacing: {
     after: number;         // twips (1/20th of a point)
-    line: number;          // line spacing in 240ths
+    line: number;          // exact line height in twips, matching CSS font-size × line-height
   };
   margins: {
     top: number;
@@ -54,28 +57,18 @@ export interface DocxStyleConfig {
   };
 }
 
-const SIZE_MAP: Record<string, number> = {
-  small: 20,   // 10pt in half-points
-  medium: 22,  // 11pt
-  large: 24,   // 12pt
-};
-
-const LINE_MAP: Record<string, number> = {
-  compact: 240,   // 1.0 spacing
-  normal: 288,    // 1.2 spacing
-  relaxed: 360,   // 1.5 spacing
-};
-
 function hexColorClean(color: string): string {
   return color.replace("#", "");
 }
 
 export function getDocxStyles(config: TemplateConfig, templateId?: string): DocxStyleConfig {
-  const normalSize = SIZE_MAP[config.fontSize] || 22;
   const variant = variantFor(templateId);
+  const scale = FONT_SCALE_MAP[config.fontSize] ?? 1;
+  const size = (points: number) => Math.round(points * scale * 2);
+  const normalSize = size(9);
   const accentColor = hexColorClean(config.accentColor || "#a3585c");
 
-  const ink = hexColorClean(config.primaryColor || "#1b2230");
+  const ink = variant === "classic" ? "000000" : hexColorClean(config.primaryColor || "#1b2230");
 
   // Heading rule mirrors each template's on-screen identity.
   // Accent bands its headings instead, so it draws no rule.
@@ -88,7 +81,7 @@ export function getDocxStyles(config: TemplateConfig, templateId?: string): Docx
       ? 18
       : variant === "executive"
       ? 4
-      : 6;
+      : 12;
 
   // Rule beneath the header block. Executive draws it as a double rule.
   const headerRuleSize =
@@ -107,14 +100,17 @@ export function getDocxStyles(config: TemplateConfig, templateId?: string): Docx
     variant === "accent" ? accentColor : variant === "timeline" ? "d5d9df" : ink;
 
   return {
-    titleSize: normalSize + 16,    // +8pt for title
-    heading2Size: normalSize + 6,  // +3pt for section headings
-    heading3Size: normalSize + 2,  // +1pt for sub-headings
+    titleSize: size(variant === "bold" ? 22.5 : 18),
+    heading2Size: size(variant === "classic" ? 10.5 : variant === "timeline" ? 7.5 : 9),
+    heading3Size: normalSize,
     normalSize,
-    fontFamily: getTemplateFont(config.fontFamily).docxFamily,
+    subSize: size(7.5),
+    fontFamily: getTemplateFont(config.fontFamily).docxFamily.replace(/\s/g, ""),
+    boldFontFamily: `${getTemplateFont(config.fontFamily).docxFamily} Bold`.replace(/\s/g, ""),
     headerFontFamily: getTemplateFont(
       config.headerFontFamily || config.fontFamily
-    ).docxFamily,
+    ).docxFamily.replace(/\s/g, ""),
+    headerBoldFontFamily: `${getTemplateFont(config.headerFontFamily || config.fontFamily).docxFamily} Bold`.replace(/\s/g, ""),
     accentColor,
     headingTextColor: ink,
     variant,
@@ -129,7 +125,7 @@ export function getDocxStyles(config: TemplateConfig, templateId?: string): Docx
     bulletStyle: config.bulletStyle || "disc",
     spacing: {
       after: 120,
-      line: LINE_MAP[config.lineSpacing] || 288,
+      line: Math.round(normalSize * 10 * Number(LINE_SPACING_MAP[config.lineSpacing] ?? 1.4)),
     },
     margins: {
       top: 1440,   // 1 inch in twips

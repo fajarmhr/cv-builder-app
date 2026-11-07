@@ -3,7 +3,7 @@
 import { TemplateWrapper } from "../TemplateWrapper";
 import type { TemplateProps } from "../TemplateRegistry";
 import { availabilityLabel, formatGpa, type Project, type SectionId } from "@/types/resume";
-import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, RenderClonedSection, SectionFrame } from "../template-helpers";
+import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, SkillsBlock, findCustomSection, isCustomSectionId, resumeWithClonedSection, SectionFrame } from "../template-helpers";
 
 /**
  * ATS001 - Classic centered header, bold section headings with underline,
@@ -12,8 +12,6 @@ import { formatDate, getVisibleSections, hasContent, ProfilePhoto, BulletList, S
 export function Ats001Template({ resume, config }: TemplateProps) {
   const info = resume.personalInfo;
   const visible = getVisibleSections(resume);
-  const sectionTitle = (section: SectionId, fallback: string) =>
-    config.sectionTitles?.[section] || fallback;
 
   const SectionTitle = ({ children }: { children: React.ReactNode }) => (
     <div className="mb-2 mt-4">
@@ -49,7 +47,11 @@ export function Ats001Template({ resume, config }: TemplateProps) {
     ) : null;
   }
 
-  const sectionRenderers: Record<string, () => React.ReactNode> = {
+  const renderersFor = (resumeData = resume, title?: string): Record<string, () => React.ReactNode> => {
+    const resume = resumeData;
+    const sectionTitle = (section: SectionId, fallback: string) =>
+      title || config.sectionTitles?.[section] || fallback;
+    return {
     personalInfo: () =>
       info ? (
         <div key="pi" className="text-center mb-3">
@@ -73,7 +75,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
     summary: () =>
       resume.summary ? (
         <div key="sum">
-          {config.sectionTitles?.summary && <SectionTitle>{config.sectionTitles.summary}</SectionTitle>}
+          {(title || config.sectionTitles?.summary) && <SectionTitle>{title || config.sectionTitles?.summary}</SectionTitle>}
           <p className="text-xs leading-[var(--line-spacing)] text-justify whitespace-pre-line">{resume.summary}</p>
         </div>
       ) : null,
@@ -204,6 +206,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
           ))}
         </div>
       ) : null,
+    };
   };
 
   return (
@@ -212,15 +215,12 @@ export function Ats001Template({ resume, config }: TemplateProps) {
         if (isCustomSectionId(s)) {
           const cs = findCustomSection(resume, s);
           if (!cs) return null;
-          if (cs.basedOn === "projects" && cs.items?.length) {
+          if (cs.basedOn && cs.items?.length) {
             return (
-              <SectionFrame key={s} sectionId="projects" config={config}>
-                {renderProjects(cs.items as Project[], cs.title)}
+              <SectionFrame key={s} sectionId={cs.basedOn} config={config}>
+                {renderersFor(resumeWithClonedSection(resume, cs), cs.title)[cs.basedOn]?.()}
               </SectionFrame>
             );
-          }
-          if (cs.basedOn && cs.items?.length) {
-            return <RenderClonedSection key={s} cs={cs} config={config} SectionTitle={SectionTitle} />;
           }
           if (!cs.content) return null;
           return (
@@ -232,7 +232,7 @@ export function Ats001Template({ resume, config }: TemplateProps) {
         }
         return (
           <SectionFrame key={s} sectionId={s} config={config}>
-            {sectionRenderers[s]?.()}
+            {renderersFor()[s]?.()}
           </SectionFrame>
         );
       })}

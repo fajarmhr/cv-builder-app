@@ -14,12 +14,18 @@ import {
   TableCell,
   WidthType,
   TableLayoutType,
+  LineRuleType,
+  ImageRun,
+  VerticalAlign,
+  UnderlineType,
 } from "docx";
-import type { ResumeData, TemplateConfig, CustomSection, Education, Skill, Certification, Language, Project, Award, Reference, SectionId } from "@/types/resume";
-import { normalizeWorkExperience, availabilityLabel, formatGpa } from "@/types/resume";
+import type { ResumeData, TemplateConfig, Project, SectionId } from "@/types/resume";
+import { availabilityLabel, formatGpa } from "@/types/resume";
 import { isCustomSectionId, getCustomSectionEntryId } from "@/types/resume";
 import { getDocxStyles, type DocxStyleConfig } from "./docx-styles";
-import { groupSkills } from "@/components/templates/template-helpers";
+import { groupSkills, resumeWithClonedSection } from "@/components/templates/template-helpers";
+import { loadExportFonts } from "./template-fonts";
+import { loadExportPhoto } from "./profile-photo";
 
 function formatDate(d: string): string {
   if (!d) return "";
@@ -83,21 +89,20 @@ function getBulletChar(style?: DocxStyleConfig["bulletStyle"]): string {
 const BULLET_REF = "resume-bullets";
 
 /** Build the numbering config for the Document based on bulletStyle */
-function buildNumberingConfig(styles: DocxStyleConfig) {
-  const char = getBulletChar(styles.bulletStyle);
+function buildNumberingConfig(variants: DocxStyleConfig[]) {
+  const stylesBySize = new Map(variants.map((styles) => [styles.normalSize, styles]));
   return {
-    config: [
-      {
-        reference: BULLET_REF,
+    config: [...stylesBySize.values()].map((styles) => ({
+        reference: `${BULLET_REF}-${styles.normalSize}`,
         levels: [
           {
             level: 0,
             format: LevelFormat.BULLET,
-            text: char,
+            text: getBulletChar(styles.bulletStyle),
             alignment: AlignmentType.LEFT,
             style: {
               paragraph: {
-                indent: { left: 360, hanging: 360 },
+                indent: { left: 180, hanging: 180 },
               },
               run: {
                 font: styles.fontFamily,
@@ -106,8 +111,7 @@ function buildNumberingConfig(styles: DocxStyleConfig) {
             },
           },
         ],
-      },
-    ],
+    })),
   };
 }
 
@@ -126,7 +130,7 @@ function bulletParagraph(text: string, styles: DocxStyleConfig): Paragraph {
           font: styles.fontFamily,
         }),
       ],
-      spacing: { after: 20, line: styles.spacing.line },
+      spacing: { after: 20, line: styles.spacing.line, lineRule: LineRuleType.EXACT },
     });
   }
 
@@ -139,16 +143,15 @@ function bulletParagraph(text: string, styles: DocxStyleConfig): Paragraph {
       }),
     ],
     numbering: {
-      reference: BULLET_REF,
+      reference: `${BULLET_REF}-${styles.normalSize}`,
       level: 0,
     },
-    spacing: { after: 20, line: styles.spacing.line },
+    spacing: { after: 20, line: styles.spacing.line, lineRule: LineRuleType.EXACT },
   });
 }
 
 /** Content width of an A4 page inside the 1" margins, in twips. */
 const CONTENT_WIDTH = 11906 - 1440 * 2;
-const RAIL_LABEL_WIDTH = 1500;
 const HAIRLINE = "d5d9df";
 
 const NO_BORDERS = {
@@ -159,6 +162,10 @@ const NO_BORDERS = {
   insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "auto" },
   insideVertical: { style: BorderStyle.NONE, size: 0, color: "auto" },
 } as const;
+
+function spacer(after: number): Paragraph {
+  return new Paragraph({ spacing: { line: 1, lineRule: LineRuleType.EXACT, after } });
+}
 
 const SECTION_LABELS: Record<string, string> = {
   workExperience: "Work Experience",
@@ -184,20 +191,26 @@ const SUMMARY_LABEL: Record<DocxStyleConfig["variant"], string | null> = {
 function sectionHeading(title: string, styles: DocxStyleConfig): Paragraph {
   return new Paragraph({
     children: [
+      ...(styles.variant === "timeline" ? [new TextRun({
+        text: "━ ", color: styles.accentColor, size: styles.heading2Size, font: styles.fontFamily,
+      })] : []),
       new TextRun({
         text: title.toUpperCase(),
         bold: true,
         size: styles.heading2Size,
-        font: styles.headerFontFamily,
+        font: styles.headerBoldFontFamily,
+        characterSpacing: styles.variant === "classic" ? 5 : styles.variant === "executive" ? 25 : styles.variant === "timeline" ? 21 : 9,
         color: styles.headingUsesAccent ? styles.accentColor : styles.headingTextColor,
+        ...(styles.variant === "bold" ? { underline: { type: UnderlineType.THICK, color: styles.accentColor } } : {}),
       }),
     ],
     heading: HeadingLevel.HEADING_2,
     // Headings keep their own leading, as they do on screen.
-    spacing: { before: 200, after: 80 },
+    spacing: { before: 240, after: 120, line: Math.round(styles.heading2Size * 14) + (styles.variant === "accent" ? 120 : 0), lineRule: LineRuleType.EXACT },
+    keepNext: true,
     ...(styles.headingShading ? { shading: { fill: styles.headingShading } } : {}),
     border: {
-      ...(styles.sectionRuleSize > 0
+      ...(styles.sectionRuleSize > 0 && styles.variant !== "bold"
         ? {
             bottom: {
               style: BorderStyle.SINGLE,
@@ -207,7 +220,7 @@ function sectionHeading(title: string, styles: DocxStyleConfig): Paragraph {
           }
         : {}),
       // Accent bands its heading; Timeline marks it with a short accent bar.
-      ...(styles.variant === "accent" || styles.variant === "timeline"
+      ...(styles.variant === "accent"
         ? { left: { style: BorderStyle.SINGLE, size: 18, color: styles.accentColor, space: 6 } }
         : {}),
     },
@@ -215,23 +228,23 @@ function sectionHeading(title: string, styles: DocxStyleConfig): Paragraph {
 }
 
 /** A borderless two-column row: a narrow left gutter beside the content. */
-function railTable(gutter: Paragraph[], body: Paragraph[], hairline: boolean): Table {
+function railTable(gutter: Paragraph[], body: Paragraph[], hairline: boolean, labelWidth = 1290): Table {
   return new Table({
     width: { size: CONTENT_WIDTH, type: WidthType.DXA },
     layout: TableLayoutType.FIXED,
     borders: NO_BORDERS,
-    columnWidths: [RAIL_LABEL_WIDTH, CONTENT_WIDTH - RAIL_LABEL_WIDTH],
+    columnWidths: [labelWidth, CONTENT_WIDTH - labelWidth],
     rows: [
       new TableRow({
         children: [
           new TableCell({
-            width: { size: RAIL_LABEL_WIDTH, type: WidthType.DXA },
+            width: { size: labelWidth, type: WidthType.DXA },
             borders: NO_BORDERS,
             margins: { top: 0, bottom: 0, left: 0, right: 120 },
             children: gutter.length ? gutter : [new Paragraph({ text: "" })],
           }),
           new TableCell({
-            width: { size: CONTENT_WIDTH - RAIL_LABEL_WIDTH, type: WidthType.DXA },
+            width: { size: CONTENT_WIDTH - labelWidth, type: WidthType.DXA },
             borders: hairline
               ? { ...NO_BORDERS, left: { style: BorderStyle.SINGLE, size: 4, color: HAIRLINE } }
               : NO_BORDERS,
@@ -252,12 +265,12 @@ function railDate(text: string, styles: DocxStyleConfig): Paragraph[] {
       children: [
         new TextRun({
           text,
-          size: styles.normalSize - 2,
+          size: styles.subSize,
           font: styles.fontFamily,
-          color: "666666",
+          color: "555555",
         }),
       ],
-      spacing: { line: styles.spacing.line, after: 0 },
+      spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 0 },
     }),
   ];
 }
@@ -284,8 +297,9 @@ function wrapSection(
                 new TextRun({
                   text: label.toUpperCase(),
                   bold: true,
-                  size: styles.normalSize - 4,
-                  font: styles.headerFontFamily,
+                  size: Math.round(styles.normalSize * 0.75),
+                  font: styles.boldFontFamily,
+                  characterSpacing: 18,
                   color: styles.accentColor,
                 }),
               ],
@@ -294,9 +308,10 @@ function wrapSection(
             }),
           ],
           paragraphs,
-          true
+          true,
+          1440
         ),
-        new Paragraph({ text: "", spacing: { after: 60 } }),
+        spacer(180),
       ];
     }
   }
@@ -306,7 +321,7 @@ function wrapSection(
 
 type HeaderPart = "name" | "title" | "contact";
 
-function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
+function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig, photo?: Buffer): (Paragraph | Table)[] {
   const info = resume.personalInfo;
   if (!info) return [];
 
@@ -336,7 +351,7 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
       : present[present.length - 1] ?? null;
 
   const rule = (k: HeaderPart) =>
-    k === ruleAfter
+    k === ruleAfter && !photo
       ? {
           border: {
             bottom: {
@@ -348,7 +363,7 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
         }
       : {};
 
-  return present.map((k) => {
+  const paragraphs = present.map((k) => {
     if (k === "name") {
       return new Paragraph({
         children: [
@@ -356,14 +371,14 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
             text: info.name,
             bold: true,
             size: styles.titleSize,
-            font: styles.headerFontFamily,
+            font: styles.headerBoldFontFamily,
             color: styles.headingTextColor,
             allCaps: styles.variant === "classic" || styles.variant === "bold",
           }),
         ],
         alignment: styles.headerAlign,
         // The name keeps its own leading, as it does on screen.
-        spacing: { after: 60 },
+        spacing: { line: Math.round(styles.titleSize * 12), lineRule: LineRuleType.EXACT, after: 0 },
         ...rule(k),
       });
     }
@@ -372,9 +387,10 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
         children: [
           new TextRun({
             text: info.title,
-            bold: true,
-            size: styles.variant === "bold" ? styles.normalSize - 2 : styles.normalSize,
-            font: styles.fontFamily,
+            bold: styles.variant !== "executive" && styles.variant !== "editorial",
+            size: styles.variant === "bold" ? styles.subSize : styles.normalSize,
+            font: styles.variant === "executive" ? styles.headerFontFamily
+              : styles.variant === "editorial" ? styles.fontFamily : styles.boldFontFamily,
             color:
               styles.variant === "accent"
                 ? styles.accentColor
@@ -385,7 +401,7 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
           }),
         ],
         alignment: styles.headerAlign,
-        spacing: { line: styles.spacing.line, after: 120 },
+        spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 120 },
         ...rule(k),
       });
     }
@@ -393,19 +409,56 @@ function renderPersonalInfo(resume: ResumeData, styles: DocxStyleConfig): Paragr
       children: [
         new TextRun({
           text: contactParts.join("  ·  "),
-          size: styles.normalSize - 2,
+          size: styles.subSize,
           font: styles.fontFamily,
-          color: "666666",
+          color: "555555",
         }),
       ],
       alignment: styles.headerAlign,
-      spacing: { line: styles.spacing.line, after: 120 },
+      spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 120 },
       ...rule(k),
     });
   });
+  if (!photo) return paragraphs;
+
+  const photoSize = styles.variant === "classic" ? 56 : 52;
+  const photoWidth = photoSize * 15 + 180;
+  const body = styles.variant === "bold" ? paragraphs.filter((_, i) => present[i] !== "contact") : paragraphs;
+  const header = new Table({
+    width: { size: CONTENT_WIDTH, type: WidthType.DXA },
+    columnWidths: [photoWidth, CONTENT_WIDTH - photoWidth],
+    layout: TableLayoutType.FIXED,
+    borders: NO_BORDERS,
+    rows: [new TableRow({ children: [
+      new TableCell({
+        width: { size: photoWidth, type: WidthType.DXA },
+        margins: { top: 0, bottom: 0, left: 0, right: 180 },
+        borders: NO_BORDERS,
+        verticalAlign: VerticalAlign.CENTER,
+        children: [new Paragraph({
+          spacing: { line: photoSize * 15, lineRule: LineRuleType.AT_LEAST, after: 0 },
+          children: [new ImageRun({
+          type: "png", data: photo,
+          transformation: { width: photoSize, height: photoSize },
+          altText: { name: info.name || "Profile photo", description: "Profile photo", title: "Profile photo" },
+          })],
+        })],
+      }),
+      new TableCell({
+        width: { size: CONTENT_WIDTH - photoWidth, type: WidthType.DXA },
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        borders: NO_BORDERS, verticalAlign: VerticalAlign.CENTER, children: body.length ? body : [new Paragraph({})],
+      }),
+    ] })],
+  });
+  const ruleParagraph = styles.headerRuleSize ? [new Paragraph({
+    spacing: { line: 1, lineRule: LineRuleType.EXACT, after: 0 },
+    border: { bottom: { style: styles.variant === "executive" ? BorderStyle.DOUBLE : BorderStyle.SINGLE, size: styles.headerRuleSize, color: styles.headerRuleColor } },
+  })] : [];
+  return [header, ...ruleParagraph, ...(styles.variant === "bold" ? paragraphs.filter((_, i) => present[i] === "contact") : []), spacer(180)];
 }
 
-function renderSummary(summary: string | null, styles: DocxStyleConfig): Paragraph[] {
+function renderSummary(summary: string | null, styles: DocxStyleConfig, isSummary = true): Paragraph[] {
   if (!summary) return [];
   // Lead paragraph (no heading) to match the on-screen templates.
   const lines = summary.split("\n");
@@ -420,8 +473,8 @@ function renderSummary(summary: string | null, styles: DocxStyleConfig): Paragra
             break: i > 0 ? 1 : undefined,
           })
       ),
-      spacing: { before: 40, after: styles.spacing.after, line: styles.spacing.line },
-      ...(styles.variant === "classic"
+      spacing: { after: 0, line: styles.spacing.line, lineRule: LineRuleType.EXACT },
+      ...(isSummary && styles.variant === "classic"
         ? { alignment: AlignmentType.JUSTIFIED }
         : {}),
     }),
@@ -442,7 +495,7 @@ function bulletBlock(
         children: [
           new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily }),
         ],
-        spacing: { line: styles.spacing.line, after: spacingAfter },
+        spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: spacingAfter },
       }),
     ];
   }
@@ -483,28 +536,28 @@ function renderWorkExperience(
                     text: pos.title || "",
                     bold: true,
                     size: styles.normalSize,
-                    font: styles.fontFamily,
+                    font: styles.boldFontFamily,
                   }),
                 ],
-                spacing: { line: styles.spacing.line, after: 0 },
+                spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 0 },
               }),
               new Paragraph({
                 children: [
                   new TextRun({
                     text: exp.company || "",
-                    size: styles.normalSize - 2,
+                    size: styles.subSize,
                     font: styles.fontFamily,
-                    color: "666666",
+                    color: "555555",
                   }),
                 ],
-                spacing: { line: styles.spacing.line, after: 40 },
+                spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 40 },
               }),
               ...bulletBlock(pos.bullets, pos.description, styles, 20),
             ],
             true
           )
         );
-        out.push(new Paragraph({ text: "", spacing: { after: 40 } }));
+        out.push(spacer(40));
       }
       continue;
     }
@@ -518,11 +571,11 @@ function renderWorkExperience(
               text: exp.company || "",
               bold: true,
               size: styles.heading3Size,
-              font: styles.fontFamily,
+              font: styles.boldFontFamily,
               allCaps: styles.variant === "classic",
             }),
           ],
-          spacing: { line: styles.spacing.line, before: 100, after: 20 },
+          spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 0 },
         })
       );
     }
@@ -534,19 +587,18 @@ function renderWorkExperience(
             new TextRun({
               text: pos.title || "",
               bold: true,
-              italics: styles.variant === "classic",
               size: styles.normalSize,
-              font: styles.fontFamily,
+              font: styles.boldFontFamily,
             }),
             new TextRun({
               text: "\t" + range(styles, pos.startDate, pos.endDate, pos.isCurrent),
-              size: styles.normalSize,
+              size: styles.subSize,
               font: styles.fontFamily,
-              color: "666666",
+              color: "555555",
             }),
           ],
           tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-          spacing: { line: styles.spacing.line, before: styles.variant === "editorial" ? 100 : 0, after: 40 },
+          spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, before: 30, after: 0 },
         })
       );
 
@@ -556,12 +608,12 @@ function renderWorkExperience(
             children: [
               new TextRun({
                 text: exp.company || "",
-                size: styles.normalSize - 2,
+                size: styles.subSize,
                 font: styles.fontFamily,
-                color: "666666",
+                color: "555555",
               }),
             ],
-            spacing: { line: styles.spacing.line, after: 40 },
+            spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 40 },
           })
         );
       }
@@ -574,100 +626,53 @@ function renderWorkExperience(
 }
 
 function renderEducation(resume: ResumeData, styles: DocxStyleConfig): (Paragraph | Table)[] {
-  if (!resume.education.length) return [];
   const out: (Paragraph | Table)[] = [];
-
   for (const edu of resume.education) {
     const when = range(styles, edu.startDate, edu.endDate);
-    const degreeLine = `${edu.degree}${edu.fieldOfStudy ? ` in ${edu.fieldOfStudy}` : ""}`;
-    const gpaRuns = edu.gpa
-      ? [
-          new TextRun({
-            text: `  |  GPA: ${formatGpa(edu)}`,
-            size: styles.normalSize,
-            font: styles.fontFamily,
-            color: "666666",
-          }),
-        ]
-      : [];
-
-    if (styles.variant === "timeline") {
-      out.push(
-        railTable(
-          railDate(when, styles),
-          [
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: degreeLine,
-                  bold: true,
-                  size: styles.normalSize,
-                  font: styles.fontFamily,
-                }),
-              ],
-              spacing: { line: styles.spacing.line, after: 0 },
-            }),
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: edu.institution || "",
-                  size: styles.normalSize - 2,
-                  font: styles.fontFamily,
-                  color: "666666",
-                }),
-                ...gpaRuns,
-              ],
-              spacing: { line: styles.spacing.line, after: 20 },
-            }),
-          ],
-          true
-        )
-      );
-      out.push(new Paragraph({ text: "", spacing: { after: 40 } }));
-      continue;
-    }
-
-    // Editorial leads with the degree; the rest lead with the institution.
-    const lead = styles.variant === "editorial" ? degreeLine : edu.institution || "";
-    const follow = styles.variant === "editorial" ? edu.institution || "" : degreeLine;
-
-    out.push(
+    const degree = `${edu.degree}${edu.fieldOfStudy ? `${styles.variant === "classic" ? ", " : " in "}${edu.fieldOfStudy}` : ""}`;
+    const gpa = edu.gpa ? [new Paragraph({
+      children: [new TextRun({
+        text: `GPA: ${formatGpa(edu)}`,
+        size: styles.variant === "classic" ? styles.normalSize : styles.subSize,
+        font: styles.fontFamily,
+        color: styles.variant === "classic" ? "000000" : "555555",
+      })],
+      spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 0 },
+    })] : [];
+    const lead = styles.variant === "timeline" || styles.variant === "editorial" ? degree : edu.institution;
+    const follow = styles.variant === "timeline" || styles.variant === "editorial" ? edu.institution : degree;
+    const body = [
       new Paragraph({
         children: [
           new TextRun({
-            text: lead,
+            text: lead || "",
             bold: true,
-            size: styles.heading3Size,
-            font: styles.fontFamily,
-          }),
-          new TextRun({
-            text: "\t" + when,
+            allCaps: styles.variant === "classic",
             size: styles.normalSize,
-            font: styles.fontFamily,
-            color: "666666",
+            font: styles.boldFontFamily,
           }),
+          ...(styles.variant === "timeline" ? [] : [new TextRun({
+            text: "\t" + when, size: styles.subSize, font: styles.fontFamily, color: "555555",
+          })]),
         ],
         tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-        spacing: { line: styles.spacing.line, before: 80, after: 20 },
-      })
-    );
-
-    out.push(
+        spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 0 },
+      }),
       new Paragraph({
-        children: [
-          new TextRun({
-            text: follow,
-            size: styles.normalSize,
-            font: styles.fontFamily,
-            color: styles.variant === "editorial" ? "666666" : undefined,
-          }),
-          ...gpaRuns,
-        ],
-        spacing: { line: styles.spacing.line, after: 60 },
-      })
-    );
+        children: [new TextRun({
+          text: follow || "",
+          size: styles.variant === "timeline" ? styles.subSize : styles.normalSize,
+          font: styles.fontFamily,
+          color: styles.variant === "timeline" || styles.variant === "editorial" ? "555555" : "000000",
+        })],
+        spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 0 },
+      }),
+      ...gpa,
+    ];
+    if (styles.variant === "timeline") out.push(railTable(railDate(when, styles), body, true));
+    else out.push(...body);
+    out.push(spacer(styles.variant === "classic" ? 120 : 150));
   }
-
   return out;
 }
 
@@ -689,7 +694,7 @@ function renderSkills(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] 
             text: `${g.category}: `,
             bold: true,
             size: styles.normalSize,
-            font: styles.fontFamily,
+            font: styles.boldFontFamily,
           })
         );
       }
@@ -700,7 +705,7 @@ function renderSkills(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] 
           font: styles.fontFamily,
         })
       );
-      paragraphs.push(new Paragraph({ children, spacing: { line: styles.spacing.line, after: 40 } }));
+      paragraphs.push(new Paragraph({ children, spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 40 } }));
     }
   } else {
     for (const s of resume.skills) {
@@ -717,20 +722,20 @@ function renderCertifications(resume: ResumeData, styles: DocxStyleConfig): Para
     paragraphs.push(
       new Paragraph({
         children: [
-          new TextRun({ text: c.name, bold: true, size: styles.normalSize, font: styles.fontFamily }),
-          ...(c.issuer ? [new TextRun({ text: ` — ${c.issuer}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
-          ...(c.date ? [new TextRun({ text: ` (${formatDate(c.date)})`, size: styles.normalSize, font: styles.fontFamily, color: "888888" })] : []),
+          new TextRun({ text: c.name, bold: true, size: styles.normalSize, font: styles.boldFontFamily }),
+          ...(c.issuer ? [new TextRun({ text: ` — ${c.issuer}`, size: styles.normalSize, font: styles.fontFamily, color: "555555" })] : []),
+          ...(c.date ? [new TextRun({ text: ` (${formatDate(c.date)})`, size: styles.normalSize, font: styles.fontFamily, color: "000000" })] : []),
         ],
-        spacing: { line: styles.spacing.line, after: c.credentialId ? 20 : 40 },
+        spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: c.credentialId ? 20 : 40 },
       })
     );
     if (c.credentialId) {
       paragraphs.push(
         new Paragraph({
           children: [
-            new TextRun({ text: `Credential ID: ${c.credentialId}`, size: styles.normalSize - 2, font: styles.fontFamily, color: "666666" }),
+            new TextRun({ text: `Credential ID: ${c.credentialId}`, size: styles.subSize, font: styles.fontFamily, color: "555555" }),
           ],
-          spacing: { line: styles.spacing.line, after: 40 },
+          spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 40 },
         })
       );
     }
@@ -749,7 +754,7 @@ function renderLanguages(resume: ResumeData, styles: DocxStyleConfig): Paragraph
           font: styles.fontFamily,
         }),
       ],
-      spacing: { line: styles.spacing.line, after: styles.spacing.after },
+      spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: styles.spacing.after },
     }),
   ];
 }
@@ -766,13 +771,13 @@ function renderProjects(projects: Project[], styles: DocxStyleConfig): (Paragrap
             new Paragraph({
               children: [
                 new TextRun({
-                  text: `Technologies: ${p.technologies.join(", ")}`,
-                  size: styles.normalSize,
+                  text: `Tech: ${p.technologies.join(", ")}`,
+                  size: styles.subSize,
                   font: styles.fontFamily,
-                  color: "666666",
+                  color: "555555",
                 }),
               ],
-              spacing: { line: styles.spacing.line, after: 40 },
+              spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 40 },
             }),
           ]
         : []),
@@ -789,37 +794,37 @@ function renderProjects(projects: Project[], styles: DocxStyleConfig): (Paragrap
                   text: p.name,
                   bold: true,
                   size: styles.normalSize,
-                  font: styles.fontFamily,
+                  font: styles.boldFontFamily,
                 }),
               ],
-              spacing: { line: styles.spacing.line, after: 20 },
+              spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 20 },
             }),
             ...body,
           ],
           true
         )
       );
-      out.push(new Paragraph({ text: "", spacing: { after: 40 } }));
+      out.push(spacer(40));
       continue;
     }
 
     out.push(
       new Paragraph({
         children: [
-          new TextRun({ text: p.name, bold: true, size: styles.normalSize, font: styles.fontFamily }),
+          new TextRun({ text: p.name, bold: true, size: styles.normalSize, font: styles.boldFontFamily }),
           ...(when
             ? [
                 new TextRun({
                   text: "\t" + when,
-                  size: styles.normalSize,
+                  size: styles.subSize,
                   font: styles.fontFamily,
-                  color: "666666",
+                  color: "555555",
                 }),
               ]
             : []),
         ],
         ...(when ? { tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }] } : {}),
-        spacing: { line: styles.spacing.line, before: 60, after: 20 },
+        spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 0 },
       })
     );
     out.push(...body);
@@ -828,79 +833,29 @@ function renderProjects(projects: Project[], styles: DocxStyleConfig): (Paragrap
 }
 
 function renderAwards(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
-  if (!resume.awards.length) return [];
-  const paragraphs: Paragraph[] = [];
-  for (const a of resume.awards) {
-    paragraphs.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: a.title, bold: true, size: styles.normalSize, font: styles.fontFamily }),
-          ...(a.issuer ? [new TextRun({ text: ` — ${a.issuer}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
-          ...(a.date ? [new TextRun({ text: ` (${formatDate(a.date)})`, size: styles.normalSize, font: styles.fontFamily, color: "888888" })] : []),
-        ],
-        spacing: { line: styles.spacing.line, after: a.description ? 20 : 40 },
-      })
-    );
-
-    if (a.description) {
-      const { lines, isSingleParagraph } = resolveBulletLines(undefined, a.description);
-      if (isSingleParagraph && lines.length === 1) {
-        paragraphs.push(
-          new Paragraph({
-            children: [new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily })],
-            spacing: { line: styles.spacing.line, after: 40 },
-          })
-        );
-      } else {
-        for (const line of lines) {
-          paragraphs.push(bulletParagraph(line, styles));
-        }
-      }
-    }
-  }
-  return paragraphs;
+  return resume.awards.map((award) => new Paragraph({
+    children: [
+      new TextRun({ text: award.title, bold: true, size: styles.normalSize, font: styles.boldFontFamily }),
+      new TextRun({
+        text: `${award.issuer ? ` — ${award.issuer}` : ""}${award.date ? ` (${formatDate(award.date)})` : ""}`,
+        size: styles.normalSize, font: styles.fontFamily,
+      }),
+    ],
+    spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 60 },
+  }));
 }
 
 function renderReferences(resume: ResumeData, styles: DocxStyleConfig): Paragraph[] {
-  if (!resume.references.length) return [];
-  const paragraphs: Paragraph[] = [];
-  for (const r of resume.references) {
-    // Line 1: Name (bold) + position + company
-    const line1Parts: TextRun[] = [
-      new TextRun({ text: r.name, bold: true, size: styles.normalSize, font: styles.fontFamily }),
-    ];
-    if (r.position) {
-      line1Parts.push(new TextRun({ text: `, ${r.position}`, size: styles.normalSize, font: styles.fontFamily }));
-    }
-    if (r.company) {
-      line1Parts.push(new TextRun({ text: ` at ${r.company}`, size: styles.normalSize, font: styles.fontFamily }));
-    }
-    paragraphs.push(
-      new Paragraph({
-        children: line1Parts,
-        spacing: { line: styles.spacing.line, after: 20 },
-      })
-    );
-
-    // Line 2: Email + phone (smaller, gray)
-    const contactParts = [r.email, r.phone].filter(Boolean);
-    if (contactParts.length > 0) {
-      paragraphs.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: contactParts.join(" | "),
-              size: styles.normalSize - 2,
-              font: styles.fontFamily,
-              color: "666666",
-            }),
-          ],
-          spacing: { line: styles.spacing.line, after: 60 },
-        })
-      );
-    }
-  }
-  return paragraphs;
+  return resume.references.map((reference) => new Paragraph({
+    children: [
+      new TextRun({ text: reference.name, bold: true, size: styles.normalSize, font: styles.boldFontFamily }),
+      new TextRun({
+        text: `${reference.position ? `, ${reference.position}` : ""}${reference.company ? ` at ${reference.company}` : ""}${reference.email ? ` — ${reference.email}` : ""}${reference.phone ? ` | ${reference.phone}` : ""}`,
+        size: styles.normalSize, font: styles.fontFamily,
+      }),
+    ],
+    spacing: { line: styles.spacing.line, lineRule: LineRuleType.EXACT, after: 60 },
+  }));
 }
 
 function renderCustomSections(
@@ -913,149 +868,12 @@ function renderCustomSections(
   const out: (Paragraph | Table)[] = [];
   for (const s of plainSections) {
     out.push(
-      ...wrapSection(s.title, bulletBlock(undefined, s.content, styles, styles.spacing.after), styles)
+      ...wrapSection(s.title, renderSummary(s.content, styles, false), styles)
     );
   }
   return out;
 }
 
-/** Render a cloned section with structured items to DOCX paragraphs */
-function renderClonedDocxSection(cs: CustomSection, styles: DocxStyleConfig): (Paragraph | Table)[] {
-  if (!cs.basedOn || !cs.items?.length) return [];
-  const paragraphs: Paragraph[] = [];
-
-  switch (cs.basedOn) {
-    case "workExperience":
-      for (const exp of normalizeWorkExperience(cs.items)) {
-        paragraphs.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: exp.company || "", bold: true, size: styles.heading3Size, font: styles.fontFamily }),
-            ],
-            spacing: { line: styles.spacing.line, before: 100, after: 20 },
-          })
-        );
-        for (const pos of exp.positions) {
-          const dateStr = `${formatDate(pos.startDate)} — ${pos.isCurrent ? "Present" : formatDate(pos.endDate)}`;
-          paragraphs.push(
-            new Paragraph({
-              children: [
-                new TextRun({ text: pos.title || "", bold: true, italics: true, size: styles.normalSize, font: styles.fontFamily }),
-                new TextRun({ text: "\t" + dateStr, size: styles.normalSize, font: styles.fontFamily, color: "666666" }),
-              ],
-              tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-              spacing: { line: styles.spacing.line, after: 40 },
-            })
-          );
-          const { lines, isSingleParagraph } = resolveBulletLines(pos.bullets, pos.description);
-          if (isSingleParagraph && lines.length === 1) {
-            paragraphs.push(new Paragraph({ children: [new TextRun({ text: lines[0], size: styles.normalSize, font: styles.fontFamily })], spacing: { line: styles.spacing.line, after: 60 } }));
-          } else {
-            for (const line of lines) paragraphs.push(bulletParagraph(line, styles));
-          }
-        }
-      }
-      break;
-
-    case "education":
-      for (const edu of cs.items as Education[]) {
-        const dateStr = `${formatDate(edu.startDate)} — ${formatDate(edu.endDate)}`;
-        paragraphs.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: edu.institution || "", bold: true, size: styles.heading3Size, font: styles.fontFamily }),
-              new TextRun({ text: "\t" + dateStr, size: styles.normalSize, font: styles.fontFamily, color: "666666" }),
-            ],
-            tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-            spacing: { line: styles.spacing.line, before: 80, after: 20 },
-          })
-        );
-        const degreeLine = `${edu.degree}${edu.fieldOfStudy ? ` in ${edu.fieldOfStudy}` : ""}`;
-        paragraphs.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: degreeLine, size: styles.normalSize, font: styles.fontFamily }),
-              ...(edu.gpa ? [new TextRun({ text: `  |  GPA: ${formatGpa(edu)}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
-            ],
-            spacing: { line: styles.spacing.line, after: 60 },
-          })
-        );
-      }
-      break;
-
-    case "skills":
-      for (const s of cs.items as Skill[]) {
-        const text = s.level ? `${s.name} (${s.level})` : s.name;
-        paragraphs.push(bulletParagraph(text, styles));
-      }
-      break;
-
-    case "certifications":
-      for (const c of cs.items as Certification[]) {
-        paragraphs.push(new Paragraph({
-          children: [
-            new TextRun({ text: c.name, bold: true, size: styles.normalSize, font: styles.fontFamily }),
-            ...(c.issuer ? [new TextRun({ text: ` — ${c.issuer}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
-            ...(c.date ? [new TextRun({ text: ` (${formatDate(c.date)})`, size: styles.normalSize, font: styles.fontFamily, color: "888888" })] : []),
-          ],
-          spacing: { line: styles.spacing.line, after: c.credentialId ? 20 : 40 },
-        }));
-        if (c.credentialId) {
-          paragraphs.push(new Paragraph({
-            children: [new TextRun({ text: `Credential ID: ${c.credentialId}`, size: styles.normalSize - 2, font: styles.fontFamily, color: "666666" })],
-            spacing: { line: styles.spacing.line, after: 40 },
-          }));
-        }
-      }
-      break;
-
-    case "languages":
-      paragraphs.push(new Paragraph({
-        children: [new TextRun({
-          text: (cs.items as Language[]).map((l) => `${l.language}${l.proficiency ? ` (${l.proficiency})` : ""}`).join(", "),
-          size: styles.normalSize, font: styles.fontFamily,
-        })],
-        spacing: { line: styles.spacing.line, after: styles.spacing.after },
-      }));
-      break;
-
-    case "projects":
-      return renderProjects(cs.items as Project[], styles);
-
-    case "awards":
-      for (const a of cs.items as Award[]) {
-        paragraphs.push(new Paragraph({
-          children: [
-            new TextRun({ text: a.title, bold: true, size: styles.normalSize, font: styles.fontFamily }),
-            ...(a.issuer ? [new TextRun({ text: ` — ${a.issuer}`, size: styles.normalSize, font: styles.fontFamily, color: "666666" })] : []),
-            ...(a.date ? [new TextRun({ text: ` (${formatDate(a.date)})`, size: styles.normalSize, font: styles.fontFamily, color: "888888" })] : []),
-          ],
-          spacing: { line: styles.spacing.line, after: 40 },
-        }));
-      }
-      break;
-
-    case "references":
-      for (const r of cs.items as Reference[]) {
-        const refLine1: TextRun[] = [
-          new TextRun({ text: r.name, bold: true, size: styles.normalSize, font: styles.fontFamily }),
-        ];
-        if (r.position) refLine1.push(new TextRun({ text: `, ${r.position}`, size: styles.normalSize, font: styles.fontFamily }));
-        if (r.company) refLine1.push(new TextRun({ text: ` at ${r.company}`, size: styles.normalSize, font: styles.fontFamily }));
-        paragraphs.push(new Paragraph({ children: refLine1, spacing: { line: styles.spacing.line, after: 20 } }));
-        const refContact = [r.email, r.phone].filter(Boolean);
-        if (refContact.length > 0) {
-          paragraphs.push(new Paragraph({
-            children: [new TextRun({ text: refContact.join(" | "), size: styles.normalSize - 2, font: styles.fontFamily, color: "666666" })],
-            spacing: { line: styles.spacing.line, after: 60 },
-          }));
-        }
-      }
-      break;
-  }
-
-  return paragraphs;
-}
 
 const SECTION_RENDERERS: Record<
   string,
@@ -1079,6 +897,10 @@ export async function generateDocx(
   templateId: string,
   config: TemplateConfig
 ): Promise<Buffer> {
+  const [exportFonts, photo] = await Promise.all([
+    loadExportFonts(config),
+    loadExportPhoto(resume.personalInfo?.photoUrl),
+  ]);
   const styles = getDocxStyles(config, templateId);
   const hiddenSections = new Set<string>(resume.hiddenSections || []);
   const sectionOrder = resume.sectionOrder || [];
@@ -1113,13 +935,14 @@ export async function generateDocx(
         const label = cs.title || "Untitled";
         // Cloned section with structured items
         if (cs.basedOn && cs.items?.length) {
-          const cloneStyles = cs.basedOn === "projects" ? stylesFor("projects") : styles;
-          children.push(...wrapSection(label, renderClonedDocxSection(cs, cloneStyles), cloneStyles));
+          const cloneStyles = stylesFor(cs.basedOn);
+          const body = SECTION_RENDERERS[cs.basedOn]?.(resumeWithClonedSection(resume, cs), cloneStyles) || [];
+          children.push(...wrapSection(label, body, cloneStyles));
         } else if (cs.content) {
           children.push(
             ...wrapSection(
               label,
-              bulletBlock(undefined, cs.content, styles, styles.spacing.after),
+              renderSummary(cs.content, stylesFor("customSections"), false),
               styles
             )
           );
@@ -1132,14 +955,16 @@ export async function generateDocx(
     if (!renderer) continue;
 
     const sectionStyles = stylesFor(sectionId);
-    const body = renderer(resume, sectionStyles);
+    const body = sectionId === "personalInfo"
+      ? renderPersonalInfo(resume, sectionStyles, photo)
+      : renderer(resume, sectionStyles);
     if (!body.length) continue;
 
     // personalInfo is the header and customSections labels its own entries;
     // everything else gets a heading (or gutter label) from wrapSection.
     const label = sectionId === "personalInfo" || sectionId === "customSections"
       ? null
-      : resume.templateConfig?.sectionTitles?.[sectionId as SectionId] || (sectionId === "summary"
+      : config.sectionTitles?.[sectionId as SectionId] || (sectionId === "summary"
         ? SUMMARY_LABEL[sectionStyles.variant]
         : SECTION_LABELS[sectionId] || sectionId);
 
@@ -1147,7 +972,17 @@ export async function generateDocx(
   }
 
   const doc = new Document({
-    numbering: buildNumberingConfig(styles),
+    // Font names also become package part names. OPC part names cannot contain spaces.
+    fonts: exportFonts.map((font) => ({ ...font, name: font.name.replace(/\s/g, "") })),
+    styles: {
+      default: {
+        document: {
+          run: { font: styles.fontFamily, size: styles.normalSize },
+          paragraph: { spacing: { after: 0, line: styles.spacing.line, lineRule: LineRuleType.EXACT } },
+        },
+      },
+    },
+    numbering: buildNumberingConfig([styles, ...styleCache.values()]),
     sections: [
       {
         properties: {

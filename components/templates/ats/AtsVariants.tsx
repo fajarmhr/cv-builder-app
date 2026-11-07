@@ -13,7 +13,7 @@ import {
   SkillsBlock,
   findCustomSection,
   isCustomSectionId,
-  RenderClonedSection,
+  resumeWithClonedSection,
   SectionFrame,
   tintOnWhite,
 } from "../template-helpers";
@@ -289,8 +289,6 @@ const SECTION_LABELS: Record<string, string> = {
   references: "References",
 };
 
-const NullTitle = () => null;
-
 export function VariantTemplate({
   resume,
   config,
@@ -349,7 +347,9 @@ export function VariantTemplate({
     ) : null;
   }
 
-  const sectionBodies: Record<string, () => ReactNode> = {
+  const bodiesFor = (resumeData = resume): Record<string, () => ReactNode> => {
+    const resume = resumeData;
+    return {
     summary: () =>
       resume.summary ? (
         <p className="text-xs leading-[var(--line-spacing)] whitespace-pre-line">{resume.summary}</p>
@@ -534,6 +534,7 @@ export function VariantTemplate({
             ))}
         </>
       ) : null,
+    };
   };
 
   return (
@@ -544,11 +545,9 @@ export function VariantTemplate({
           if (!cs) return null;
           if (cs.basedOn && cs.items?.length) {
             return (
-              <SectionFrame key={s} sectionId={cs.basedOn === "projects" ? "projects" : s} config={config}>
+              <SectionFrame key={s} sectionId={cs.basedOn} config={config}>
                 <Section label={cs.title} variant={variant} accent={accent}>
-                  {cs.basedOn === "projects" ? renderProjects(cs.items as Project[]) : (
-                    <RenderClonedSection cs={cs} config={config} SectionTitle={NullTitle} />
-                  )}
+                  {bodiesFor(resumeWithClonedSection(resume, cs))[cs.basedOn]?.()}
                 </Section>
               </SectionFrame>
             );
@@ -576,12 +575,12 @@ export function VariantTemplate({
         if (s === "customSections") {
           return (
             <SectionFrame key={s} sectionId={s} config={config}>
-              {sectionBodies[s]?.()}
+              {bodiesFor()[s]?.()}
             </SectionFrame>
           );
         }
 
-        const body = sectionBodies[s]?.();
+        const body = bodiesFor()[s]?.();
         if (!body) return null;
         const label = config.sectionTitles?.[s as SectionId] || (s === "summary" ? summaryLabel : SECTION_LABELS[s] || s);
         return (

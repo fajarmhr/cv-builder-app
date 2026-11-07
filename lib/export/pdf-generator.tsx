@@ -9,7 +9,7 @@ import {
   renderToBuffer,
 } from "@react-pdf/renderer";
 import type { ResumeData, TemplateConfig, CustomSection, SectionId } from "@/types/resume";
-import { normalizeWorkExperience, availabilityLabel, formatGpa } from "@/types/resume";
+import { availabilityLabel, formatGpa } from "@/types/resume";
 import {
   formatDate,
   getVisibleSections,
@@ -19,8 +19,13 @@ import {
   findCustomSection,
   isCustomSectionId,
   tintOnWhite,
+  resumeWithClonedSection,
+  FONT_SCALE_MAP,
+  LINE_SPACING_MAP,
 } from "@/components/templates/template-helpers";
 import { getTemplateFont } from "@/lib/template-fonts";
+import { loadExportFonts } from "./template-fonts";
+import { loadExportPhoto } from "./profile-photo";
 
 // The on-screen templates never hyphenate; react-pdf does by default, which
 // broke long contact lines as "Oppor-tunities". Keep words whole.
@@ -79,65 +84,24 @@ const SUMMARY_LABEL: Record<Variant, string | null> = {
   editorial: "Summary",
 };
 
-// Register the résumé's body + header fonts (regular/bold) from the fontsource
-// CDN so the PDF matches the on-screen template. Falls back to the built-in
-// Helvetica/Times if a family can't be registered.
-const FONTSOURCE = "https://cdn.jsdelivr.net/fontsource/fonts";
+// Fonts are loaded before rendering so both export formats use the same files.
 const registeredFonts = new Set<string>();
 
-function registerTemplateFont(opt: ReturnType<typeof getTemplateFont>): boolean {
-  const id = opt.value;
-  if (!id) return false;
-  if (registeredFonts.has(id)) return true;
-  try {
-    Font.register({
-      family: opt.docxFamily,
-      src: `${FONTSOURCE}/${id}@latest/latin-400-normal.ttf`,
-    });
-    Font.register({
-      family: `${opt.docxFamily} Bold`,
-      src: `${FONTSOURCE}/${id}@latest/latin-700-normal.ttf`,
-    });
-    registeredFonts.add(id);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function fonts(config: TemplateConfig) {
-  const bodyOpt = getTemplateFont(config.fontFamily);
-  const headerOpt = getTemplateFont(config.headerFontFamily || config.fontFamily);
-  const bodyOk = registerTemplateFont(bodyOpt);
-  const headerOk = registerTemplateFont(headerOpt);
-  const bodySerif = bodyOpt.category === "serif";
-  const headerSerif = headerOpt.category === "serif";
-  return {
-    body: bodyOk ? bodyOpt.docxFamily : bodySerif ? "Times-Roman" : "Helvetica",
-    bodyBold: bodyOk
-      ? `${bodyOpt.docxFamily} Bold`
-      : bodySerif
-      ? "Times-Bold"
-      : "Helvetica-Bold",
-    headerBold: headerOk
-      ? `${headerOpt.docxFamily} Bold`
-      : headerSerif
-      ? "Times-Bold"
-      : "Helvetica-Bold",
-  };
+  const body = getTemplateFont(config.fontFamily).docxFamily;
+  const header = getTemplateFont(config.headerFontFamily || config.fontFamily).docxFamily;
+  return { body, bodyBold: `${body} Bold`, header, headerBold: `${header} Bold` };
 }
 
 // Mirrors FONT_SCALE_MAP / LINE_SPACING_MAP in template-helpers so the export
 // honours the same global font-size and line-spacing controls as the preview.
-const FONT_SCALE: Record<string, number> = { small: 0.85, medium: 1, large: 1.15 };
-const LINE_HEIGHT: Record<string, number> = { compact: 1.2, normal: 1.4, relaxed: 1.6 };
 
 function buildStyles(config: TemplateConfig, variant: Variant) {
   const f = fonts(config);
-  const scale = FONT_SCALE[config.fontSize] ?? 1;
+  const scale = FONT_SCALE_MAP[config.fontSize] ?? 1;
   const sz = (n: number) => Math.round(n * scale * 100) / 100;
-  const lh = LINE_HEIGHT[config.lineSpacing] ?? 1.4;
-  const ink = config.primaryColor || "#1b2230";
+  const lh = Number(LINE_SPACING_MAP[config.lineSpacing] ?? 1.4);
+  const ink = variant === "classic" ? "#000000" : config.primaryColor || "#1b2230";
   const accent = config.accentColor || "#a3585c";
 
   // Section-title rule differs per variant
@@ -171,7 +135,7 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
     // No alignItems: classic uses headerCenter instead, and "flex-start" here
     // would size the row to its content, collapsing the name column.
     header: {
-      marginBottom: 9,
+      marginBottom: variant === "editorial" ? 9 : 0,
       paddingBottom: 5,
       ...headerRule,
     },
@@ -188,12 +152,12 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
       borderBottomWidth: 3.5,
       borderBottomColor: ink,
     },
-    contactBelow: { fontSize: sz(7.5), color: SUB, marginTop: 4, marginBottom: 9 },
+    contactBelow: { fontSize: sz(7.5), color: SUB, marginTop: 4 },
     // Executive — a double rule, drawn as two stacked hairlines
     execRuleThick: { marginTop: 5, borderBottomWidth: 1.25, borderBottomColor: ink },
-    execRuleThin: { marginTop: 1.5, borderBottomWidth: 0.75, borderBottomColor: ink, marginBottom: 9 },
+    execRuleThin: { marginTop: 1.5, borderBottomWidth: 0.75, borderBottomColor: ink },
     contactSpaced: { fontSize: sz(7.5), color: SUB, lineHeight: 1.35, marginTop: 3 },
-    photo: { width: 42, height: 42, borderRadius: 21, objectFit: "cover", marginRight: 9, flexShrink: 0 },
+    photo: { width: variant === "classic" ? 42 : 39, height: variant === "classic" ? 42 : 39, borderRadius: 21, objectFit: "cover", marginRight: 9, flexShrink: 0 },
     // Classic: photo beside a centred name/contact column (mirrors Ats001's
     // `flex items-center justify-center` header — never overlaps the name).
     headerCenter: { marginBottom: 9 },
@@ -206,7 +170,7 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
     name: {
       fontFamily: f.headerBold,
       color: ink,
-      fontSize: sz(variant === "bold" ? 22 : variant === "classic" ? 18 : 19),
+      fontSize: sz(variant === "bold" ? 22.5 : 18),
       lineHeight: 1.2,
       textTransform: variant === "classic" || variant === "bold" ? "uppercase" : "none",
       letterSpacing:
@@ -221,7 +185,7 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
       textAlign: variant === "classic" ? "center" : "left",
     },
     headline: {
-      fontFamily: f.bodyBold,
+      fontFamily: variant === "executive" ? f.header : variant === "editorial" ? f.body : f.bodyBold,
       fontSize: sz(variant === "bold" ? 7.5 : 9),
       color: variant === "accent" ? accent : variant === "classic" ? ink : SUB,
       marginTop: 2,
@@ -233,12 +197,10 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
     sectionTitle: {
       fontFamily: f.headerBold,
       color: ink,
-      fontSize: sz(variant === "executive" ? 9.5 : 10.5),
+      fontSize: sz(variant === "classic" ? 10.5 : 9),
       textTransform: "uppercase",
       letterSpacing: variant === "executive" ? 1.2 : 0.3,
       paddingBottom: 3,
-      marginTop: 12,
-      marginBottom: 6,
       borderBottomStyle: "solid",
       ...titleBorder,
     },
@@ -249,22 +211,20 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
       borderLeftColor: accent,
       paddingVertical: 3,
       paddingHorizontal: 5,
-      marginTop: 12,
-      marginBottom: 6,
     },
     titleBandText: {
       fontFamily: f.headerBold,
       color: accent,
-      fontSize: sz(9.5),
+      fontSize: sz(9),
       textTransform: "uppercase",
       letterSpacing: 0.7,
     },
     // Bold — underline only as wide as the heading text
-    titleUnderlineRow: { flexDirection: "row", marginTop: 12, marginBottom: 6 },
+    titleUnderlineRow: { flexDirection: "row" },
     titleUnderlineText: {
       fontFamily: f.headerBold,
       color: ink,
-      fontSize: sz(9.5),
+      fontSize: sz(9),
       textTransform: "uppercase",
       letterSpacing: 0.7,
       paddingBottom: 2,
@@ -272,47 +232,42 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
       borderBottomColor: accent,
     },
     // Timeline — a short accent tick before the heading
-    titleTickRow: { flexDirection: "row", alignItems: "center", marginTop: 12, marginBottom: 6 },
+    titleTickRow: { flexDirection: "row", alignItems: "center" },
     titleTick: { width: 9, height: 2.5, backgroundColor: accent, marginRight: 5 },
     titleTickText: {
       fontFamily: f.headerBold,
       color: ink,
-      fontSize: sz(8.5),
+      fontSize: sz(7.5),
       textTransform: "uppercase",
       letterSpacing: 1.3,
     },
     // Editorial — section label in a left gutter
-    railSection: { flexDirection: "row", marginBottom: 10 },
+    railSection: { position: "relative", marginBottom: 9 },
     railLabel: {
       // Wide enough for "CERTIFICATIONS", which is one unbreakable word, and
       // scaled so it still fits at the large font-size setting.
-      width: sz(84),
+      position: "absolute",
+      width: 63,
       flexShrink: 0,
-      fontFamily: f.headerBold,
+      fontFamily: f.bodyBold,
       color: accent,
-      fontSize: sz(7),
+      fontSize: sz(6.75),
       textTransform: "uppercase",
       letterSpacing: 0.7,
       paddingTop: 1,
       paddingRight: 4,
     },
-    // flexBasis 0 is required: without it the column sizes to its content and
-    // the nested bullet rows collapse to one word per line.
     railBody: {
-      flexGrow: 1,
-      flexShrink: 1,
-      flexBasis: 0,
+      marginLeft: 72,
       borderLeftWidth: 0.75,
       borderLeftColor: HAIR,
       paddingLeft: 9,
     },
     // Timeline — dates in a left column beside each entry
-    tlRow: { flexDirection: "row", marginBottom: 7 },
-    tlWhen: { width: 56, flexShrink: 0, fontSize: sz(7.5), color: SUB },
+    tlWhen: { width: 64.5, flexShrink: 0, fontSize: sz(7.5), color: SUB },
+    tlLead: { flexGrow: 1, flexShrink: 1, flexBasis: 0, borderLeftWidth: 0.75, borderLeftColor: HAIR, paddingLeft: 7 },
     tlBody: {
-      flexGrow: 1,
-      flexShrink: 1,
-      flexBasis: 0,
+      marginLeft: 64.5,
       borderLeftWidth: 0.75,
       borderLeftColor: HAIR,
       paddingLeft: 7,
@@ -320,7 +275,6 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
     summary: {
       fontSize: sz(9),
       textAlign: variant === "classic" ? "justify" : "left",
-      marginBottom: 2,
     },
     rowBetween: {
       flexDirection: "row",
@@ -332,9 +286,7 @@ function buildStyles(config: TemplateConfig, variant: Variant) {
     sub: { fontSize: sz(7.5), color: SUB },
     itemBlock: { marginBottom: 9 },
     itemBlockSm: { marginBottom: 6 },
-    bulletRow: { flexDirection: "row", marginTop: 1.5 },
-    bulletMarker: { width: 9 },
-    bulletText: { flex: 1 },
+    bulletText: { paddingLeft: 9, textIndent: -9, marginTop: 1.5 },
     paraSm: { marginBottom: 3 },
     mt0: { marginTop: 1.5 },
   });
@@ -379,10 +331,9 @@ function Bullets({
   return (
     <View style={styles.mt0}>
       {lines.map((b, i) => (
-        <View key={i} style={styles.bulletRow}>
-          {marker ? <Text style={styles.bulletMarker}>{marker}</Text> : null}
-          <Text style={styles.bulletText}>{b}</Text>
-        </View>
+        <Text key={i} style={marker ? styles.bulletText : styles.mt0}>
+          {marker ? `${marker}\u2002` : ""}{b}
+        </Text>
       ))}
     </View>
   );
@@ -390,12 +341,32 @@ function Bullets({
 
 type Styles = ReturnType<typeof buildStyles>;
 
+/** Keep a timeline date with its heading while the description flows across pages. */
+function TimelineEntry({ when, heading, children, styles, last }: {
+  when: string;
+  heading: React.ReactNode;
+  children?: React.ReactNode;
+  styles: Styles;
+  last: boolean;
+}) {
+  return (
+    <>
+      <View style={{ flexDirection: "row" }} wrap={false}>
+        <Text style={styles.tlWhen}>{when}</Text>
+        <View style={styles.tlLead}>{heading}</View>
+      </View>
+      {children && <View style={styles.tlBody}>{children}</View>}
+      {!last && <View style={{ height: 7.5 }} />}
+    </>
+  );
+}
+
 /**
  * Space (in points) that must remain below a heading for it to stay on the
  * page. Less than this and react-pdf moves the heading to the next page with
  * its content, instead of stranding it at the foot of the previous one.
  */
-const KEEP_WITH_NEXT = 64;
+const KEEP_WITH_NEXT = 32;
 
 function SectionTitle({
   children,
@@ -424,51 +395,36 @@ function SectionTitle({
       <Text style={styles.sectionTitle}>{children}</Text>
     );
 
-  // The break hints live on a plain wrapper: react-pdf mislays a <Text> that
-  // carries wrap={false}, and the following block ends up overlapping itself.
-  // wrap={false} keeps a heading's rule or accent tick from being left behind
-  // on the previous page when only the text moves.
   return (
-    <View minPresenceAhead={KEEP_WITH_NEXT} wrap={false}>
+    <View style={{ marginTop: 12, marginBottom: 6 }} minPresenceAhead={KEEP_WITH_NEXT} wrap={false}>
       {inner}
     </View>
   );
 }
 
 /** Wraps one section: a heading above the body, or a left-gutter label. */
-/**
- * Work history is the one section that legitimately outgrows a page. Keeping
- * it atomic would make react-pdf clip it, so it alone may break between
- * entries; every other section moves to the next page whole.
- */
-const BREAKABLE_SECTIONS = new Set(["workExperience"]);
 
 function Section({
   label,
   variant,
   styles,
-  atomic = true,
   children,
 }: {
   label: string;
   variant: Variant;
   styles: Styles;
-  atomic?: boolean;
   children: React.ReactNode;
 }) {
   if (variant === "editorial") {
-    // The gutter is a flex row, and react-pdf overlaps its columns when one
-    // breaks across a page, so the whole section moves to the next page
-    // instead. That is also what "break between sections" asks for.
     return (
-      <View style={styles.railSection} minPresenceAhead={KEEP_WITH_NEXT} wrap={false}>
+      <View style={[{ fontSize: styles.page.fontSize, lineHeight: styles.page.lineHeight }, styles.railSection]}>
         <Text style={styles.railLabel}>{label.toUpperCase()}</Text>
         <View style={styles.railBody}>{children}</View>
       </View>
     );
   }
   return (
-    <View wrap={!atomic}>
+    <View style={{ fontSize: styles.page.fontSize, lineHeight: styles.page.lineHeight }}>
       <SectionTitle variant={variant} styles={styles}>
         {label}
       </SectionTitle>
@@ -481,7 +437,7 @@ function Section({
 function range(variant: Variant, start?: string, end?: string, isCurrent?: boolean): string {
   const s = start ? formatDate(start) : "";
   const e = isCurrent ? "Present" : end ? formatDate(end) : "";
-  const sep = variant === "classic" ? " — " : " – ";
+  const sep = variant === "classic" ? " — " : variant === "timeline" ? " –\n" : " – ";
   return s && e ? s + sep + e : s || e;
 }
 
@@ -493,22 +449,22 @@ function renderWorkItems(
 ) {
   // Timeline — one rail row per position, date on the left.
   if (variant === "timeline") {
-    return items.map((exp, i) => (
-      <View key={exp.id || i}>
-        {exp.positions.map((pos, pi) => (
-          <View key={pos.id || pi} style={styles.tlRow} wrap={false}>
-            <Text style={styles.tlWhen}>
-              {range(variant, pos.startDate, pos.endDate, pos.isCurrent)}
-            </Text>
-            <View style={styles.tlBody}>
+    return items.flatMap((exp, i) =>
+      exp.positions.map((pos, pi) => (
+          <TimelineEntry
+            key={`${exp.id || i}-${pos.id || pi}`}
+            when={range(variant, pos.startDate, pos.endDate, pos.isCurrent)}
+            styles={styles}
+            last={i === items.length - 1 && pi === exp.positions.length - 1}
+            heading={<>
               <Text style={styles.bold}>{pos.title}</Text>
               <Text style={styles.sub}>{exp.company}</Text>
-              <Bullets bullets={pos.bullets} description={pos.description} config={config} styles={styles} />
-            </View>
-          </View>
-        ))}
-      </View>
-    ));
+            </>}
+          >
+            <Bullets bullets={pos.bullets} description={pos.description} config={config} styles={styles} />
+          </TimelineEntry>
+      ))
+    );
   }
 
   // Editorial leads with the role; the company sits underneath it.
@@ -516,7 +472,7 @@ function renderWorkItems(
     return items.map((exp, i) => (
       <View key={exp.id || i} style={styles.itemBlock}>
         {exp.positions.map((pos, pi) => (
-          <View key={pos.id || pi} style={styles.mt0} wrap={false}>
+          <View key={pos.id || pi} style={styles.mt0}>
             <View style={styles.rowBetween}>
               <Text style={styles.bold}>{pos.title}</Text>
               <Text style={styles.sub}>
@@ -532,10 +488,10 @@ function renderWorkItems(
   }
 
   return items.map((exp, i) => (
-    <View key={exp.id || i} style={styles.itemBlock}>
-      <Text style={variant === "classic" ? styles.boldUpper : styles.bold} minPresenceAhead={KEEP_WITH_NEXT}>{exp.company}</Text>
+    <View key={exp.id || i} style={[styles.itemBlock, i === items.length - 1 ? { marginBottom: 0 } : {}]}>
+      <Text style={variant === "classic" ? styles.boldUpper : styles.bold}>{exp.company}</Text>
       {exp.positions.map((pos, pi) => (
-        <View key={pos.id || pi} style={styles.mt0} wrap={false}>
+        <View key={pos.id || pi} style={styles.mt0}>
           <View style={styles.rowBetween}>
             <Text style={styles.bold}>{pos.title}</Text>
             <Text style={styles.sub}>
@@ -566,14 +522,11 @@ function renderEducationItems(
 
     if (variant === "timeline") {
       return (
-        <View key={edu.id || i} style={styles.tlRow} wrap={false}>
-          <Text style={styles.tlWhen}>{when}</Text>
-          <View style={styles.tlBody}>
+        <TimelineEntry key={edu.id || i} when={when} styles={styles} last={i === items.length - 1} heading={<>
             <Text style={styles.bold}>{degree}</Text>
             <Text style={styles.sub}>{edu.institution}</Text>
             {gpa}
-          </View>
-        </View>
+        </>} />
       );
     }
 
@@ -581,7 +534,7 @@ function renderEducationItems(
     const lead = variant === "editorial" ? degree : edu.institution;
     const follow = variant === "editorial" ? edu.institution : degree;
     return (
-      <View key={edu.id || i} style={styles.itemBlockSm} wrap={false}>
+      <View key={edu.id || i} style={[styles.itemBlockSm, i === items.length - 1 && variant !== "editorial" ? { marginBottom: 0 } : {}]}>
         <View style={styles.rowBetween}>
           <Text style={variant === "classic" ? styles.boldUpper : styles.bold}>{lead}</Text>
           <Text style={styles.sub}>{when}</Text>
@@ -607,7 +560,7 @@ function renderSkillItems(
     return (
       <View style={styles.mt0}>
         {groups.map((g, gi) => (
-          <Text key={gi} style={styles.paraSm}>
+          <Text key={gi} style={gi === groups.length - 1 ? undefined : styles.paraSm}>
             {g.category ? <Text style={styles.bold}>{g.category}: </Text> : null}
             {g.items.map(fmt).join(", ")}
           </Text>
@@ -620,10 +573,9 @@ function renderSkillItems(
   return (
     <View style={styles.mt0}>
       {items.map((s, i) => (
-        <View key={s.id || i} style={styles.bulletRow}>
-          {marker ? <Text style={styles.bulletMarker}>{marker}</Text> : null}
-          <Text style={styles.bulletText}>{fmt(s)}</Text>
-        </View>
+        <Text key={s.id || i} style={marker ? styles.bulletText : styles.mt0}>
+          {marker ? `${marker}\u2002` : ""}{fmt(s)}
+        </Text>
       ))}
     </View>
   );
@@ -648,18 +600,14 @@ function renderProjectItems(
 
     if (variant === "timeline") {
       return (
-        <View key={p.id || i} style={styles.tlRow} wrap={false}>
-          <Text style={styles.tlWhen}>{when}</Text>
-          <View style={styles.tlBody}>
-            <Text style={styles.bold}>{p.name}</Text>
-            {body}
-          </View>
-        </View>
+        <TimelineEntry key={p.id || i} when={when} styles={styles} last={i === items.length - 1} heading={<Text style={styles.bold}>{p.name}</Text>}>
+          {body}
+        </TimelineEntry>
       );
     }
 
     return (
-      <View key={p.id || i} style={styles.itemBlockSm} wrap={false}>
+      <View key={p.id || i} style={[styles.itemBlockSm, i === items.length - 1 && variant !== "editorial" ? { marginBottom: 0 } : {}]}>
         <View style={styles.rowBetween}>
           <Text style={styles.bold}>{p.name}</Text>
           {when ? <Text style={styles.sub}>{when}</Text> : null}
@@ -789,7 +737,9 @@ function ResumePdfDocument({
   }
 
   // Section *bodies* only — <Section> supplies the heading (or gutter label).
-  const renderersFor = (styles: Styles): Record<string, () => React.ReactNode> => ({
+  const renderersFor = (styles: Styles, resumeData = resume): Record<string, () => React.ReactNode> => {
+    const resume = resumeData;
+    return {
     personalInfo: () =>
       info ? <Header key="pi" info={info} variant={variant} styles={styles} /> : null,
 
@@ -802,12 +752,12 @@ function ResumePdfDocument({
 
     workExperience: () =>
       hasContent(resume, "workExperience") ? (
-        <View key="we">{renderWorkItems(resume.workExperience, config, styles, variant)}</View>
+        renderWorkItems(resume.workExperience, config, styles, variant)
       ) : null,
 
     education: () =>
       hasContent(resume, "education") ? (
-        <View key="edu">{renderEducationItems(resume.education, styles, variant)}</View>
+        renderEducationItems(resume.education, styles, variant)
       ) : null,
 
     skills: () =>
@@ -819,7 +769,7 @@ function ResumePdfDocument({
       hasContent(resume, "certifications") ? (
         <View key="cert">
           {resume.certifications.map((c, i) => (
-            <View key={c.id || i} style={styles.paraSm} wrap={false}>
+            <View key={c.id || i} style={i === resume.certifications.length - 1 ? undefined : styles.paraSm}>
               <Text>
                 <Text style={styles.bold}>{c.name}</Text>
                 {c.issuer ? ` — ${c.issuer}` : ""}
@@ -846,14 +796,14 @@ function ResumePdfDocument({
 
     projects: () =>
       hasContent(resume, "projects") ? (
-        <View key="proj">{renderProjectItems(resume.projects, config, styles, variant)}</View>
+        renderProjectItems(resume.projects, config, styles, variant)
       ) : null,
 
     awards: () =>
       hasContent(resume, "awards") ? (
         <View key="aw">
           {resume.awards.map((a, i) => (
-            <Text key={a.id || i} style={styles.paraSm}>
+            <Text key={a.id || i} style={i === resume.awards.length - 1 ? undefined : styles.paraSm}>
               <Text style={styles.bold}>{a.title}</Text>
               {a.issuer ? ` — ${a.issuer}` : ""}
               {a.date ? ` (${formatDate(a.date)})` : ""}
@@ -866,7 +816,7 @@ function ResumePdfDocument({
       hasContent(resume, "references") ? (
         <View key="ref">
           {resume.references.map((r, i) => (
-            <Text key={r.id || i} style={styles.paraSm}>
+            <Text key={r.id || i} style={i === resume.references.length - 1 ? undefined : styles.paraSm}>
               <Text style={styles.bold}>{r.name}</Text>
               {r.position ? `, ${r.position}` : ""}
               {r.company ? ` at ${r.company}` : ""}
@@ -889,44 +839,29 @@ function ResumePdfDocument({
             ))}
         </View>
       ) : null,
-  });
+    };
+  };
 
   function renderCloned(cs: CustomSection) {
-    const projectStyles = cs.basedOn === "projects" ? stylesFor("projects") : styles;
+    const cloneStyles = stylesFor(cs.basedOn || "customSections");
     let body: React.ReactNode;
     if (!cs.basedOn || !cs.items?.length) {
       if (!cs.content) return null;
       body = <Text>{cs.content}</Text>;
     } else {
-      switch (cs.basedOn) {
-        case "workExperience":
-          body = renderWorkItems(normalizeWorkExperience(cs.items), config, styles, variant);
-          break;
-        case "education":
-          body = renderEducationItems(cs.items as ResumeData["education"], styles, variant);
-          break;
-        case "skills":
-          body = renderSkillItems(cs.items as ResumeData["skills"], config, styles);
-          break;
-        case "projects":
-          body = <View>{renderProjectItems(cs.items as ResumeData["projects"], config, projectStyles, variant)}</View>;
-          break;
-        default:
-          body = <Text>{cs.content}</Text>;
-      }
+      body = renderersFor(cloneStyles, resumeWithClonedSection(resume, cs))[cs.basedOn]?.();
     }
     const node = (
       <Section
         key={cs.id}
         label={cs.title}
         variant={variant}
-        styles={projectStyles}
-        atomic={!BREAKABLE_SECTIONS.has(cs.basedOn ?? "")}
+        styles={cloneStyles}
       >
         {body}
       </Section>
     );
-    return cs.basedOn === "projects" ? <View key={cs.id} style={sectionFrame("projects")}>{node}</View> : node;
+    return node;
   }
 
   return (
@@ -954,23 +889,16 @@ function ResumePdfDocument({
               body
             ) : (
               <Section
+                key={s}
                 label={label}
                 variant={variant}
                 styles={sectionStyles}
-                atomic={!BREAKABLE_SECTIONS.has(s)}
               >
                 {body}
               </Section>
             );
 
-          const frame = sectionFrame(s);
-          return frame ? (
-            <View key={s} style={frame}>
-              {node}
-            </View>
-          ) : (
-            <View key={s}>{node}</View>
-          );
+          return label === null ? <View key={s} style={sectionFrame(s)}>{node}</View> : node;
         })}
       </Page>
     </Document>
@@ -983,8 +911,22 @@ export async function generatePdf(
   templateId?: string
 ): Promise<Buffer> {
   const variant = variantFor(templateId ?? resume.templateId);
+  const [exportFonts, photo] = await Promise.all([
+    loadExportFonts(config),
+    loadExportPhoto(resume.personalInfo?.photoUrl),
+  ]);
+  for (const font of exportFonts) {
+    if (!registeredFonts.has(font.name)) {
+      Font.register({ family: font.name, src: `data:font/ttf;base64,${font.data.toString("base64")}` });
+      registeredFonts.add(font.name);
+    }
+  }
+  const pdfResume = photo && resume.personalInfo ? {
+    ...resume,
+    personalInfo: { ...resume.personalInfo, photoUrl: `data:image/png;base64,${photo.toString("base64")}` },
+  } : resume;
   return renderToBuffer(
-    <ResumePdfDocument resume={resume} config={config} variant={variant} />
+    <ResumePdfDocument resume={pdfResume} config={config} variant={variant} />
   );
 }
 
